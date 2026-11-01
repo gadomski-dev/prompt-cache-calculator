@@ -58,7 +58,7 @@ Cursor yet. Results from either are welcome as issues.
 |---|---|
 | `index.html` | The page. Loads `model.js`; inline CSS and JS. |
 | `model.js` | Pure maths, no DOM. Browser global `CacheModel`, Node `module.exports`. Constants copied from `research/constants.json` with status and fact ids (a `file://` page cannot fetch JSON). |
-| `model.test.mjs` | `node:test` tests with hand-computed expected values for every scenario. Run `node --test model.test.mjs` (38 tests). |
+| `model.test.mjs` | `node:test` tests with hand-computed expected values for every scenario. Run `node --test model.test.mjs` (43 tests). |
 | `research/` | `facts.md` (every fact id the page cites, with source and quote) and `constants.json` (the values `model.js` copies). |
 | `fonts/` | League Spartan, Geist and Geist Mono, under the SIL Open Font License 1.1 (`fonts/LICENSE-*.txt`). |
 
