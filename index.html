@@ -973,12 +973,13 @@
     });
 
     // Buttons and keys
-    $('btnMore').addEventListener('click', function () { toggleDrawer(); });
-    $('ttlChip').addEventListener('click', function () { toggleDrawer(true); });
+    $('btnMore').addEventListener('click', function () { toggleDrawer(null, $('btnMore')); });
+    $('ttlChip').addEventListener('click', function () { toggleDrawer(true, $('ttlChip')); });
     $('btnEd').addEventListener('click', toggleEdition);
     $('btnReset').addEventListener('click', function () { var f = st['ui.focus']; st = M.defaultState(); st['ui.focus'] = f; syncInputs(); changed('reset'); });
     document.addEventListener('keydown', function (e) {
       var tg = e.target, t = tg && tg.tagName;
+      var inDrawer = !!(tg && tg.closest && tg.closest('#drawer'));
       // Only typing fields swallow keys; sliders, checkboxes and buttons let the shortcuts through. Esc always works.
       if ((t === 'INPUT' && tg.type === 'text') || t === 'SELECT' || t === 'TEXTAREA' || (tg && tg.isContentEditable)) {
         if (e.key !== 'Escape') return;
@@ -989,7 +990,7 @@
       var popOpen = !$('shotPop').hidden;
       if (k === 'Escape') {
         if (popOpen) closeShots();
-        else if (!$('drawer').hidden) toggleDrawer(false);
+        else if (!$('drawer').hidden) toggleDrawer(false, null, inDrawer);
         return;
       }
       var isTabKey = k === 'ArrowRight' || k === 'ArrowLeft';
@@ -1121,9 +1122,14 @@
     shotOpener = null;
   }
 
-  function toggleDrawer(force) {
+  var drawerOpener = null;
+  /** restoreFocus: focus was inside the drawer (a typing field blurs itself on Esc first), so it goes back to the opener. */
+  function toggleDrawer(force, opener, restoreFocus) {
     var d = $('drawer'), open = force != null ? force : d.hidden;
+    var hadFocus = restoreFocus || d.contains(document.activeElement);
+    if (open && opener) drawerOpener = opener;
     d.hidden = !open;
+    if (!open && hadFocus) (drawerOpener && drawerOpener.offsetParent ? drawerOpener : $('btnMore')).focus();
     $('btnMore').setAttribute('aria-expanded', open ? 'true' : 'false');
     $('ttlChip').setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open && force) d.scrollIntoView({ block: 'nearest' });
