@@ -1639,7 +1639,7 @@
     var r = R.rates;
     setHTML('assume', 'Assumptions: ' + fmtNum(r.genMin, 2) + ' min to generate an answer · ' + R.days + ' working days a month · one agent poll = ' + st['g.pollOut'] + ' output + ' + st['g.pollIn'] + ' new input tokens' +
       (gptOn() ? ' · GPT hit rate ' + pct(r.gptHit) + ' for returns after 5 min (community-measured)' : '') + (R.subscription ? ' · subscription amounts are API-equivalent' : '') + '.');
-    setText('asof', 'Prices as of ' + M.AS_OF);
+    setText('asof', 'Prices as of ' + M.AS_OF + ', Cursor rechecked ' + M.CURSOR_AS_OF);
     setText('tele', 'EP.09 · Prompt cache · as of ' + M.AS_OF);
   }
 

@@ -17,6 +17,7 @@
 
   var MTOK = 1000000;
   var AS_OF = '2026-10-28';
+  var CURSOR_AS_OF = '2026-11-01'; // Cursor's Models & Pricing table and model pages were rechecked on this date
 
   // ---------------------------------------------------------------------------
   // Constants copied from constants.json
@@ -1041,7 +1042,7 @@
   }
 
   return {
-    AS_OF: AS_OF, MTOK: MTOK,
+    AS_OF: AS_OF, CURSOR_AS_OF: CURSOR_AS_OF, MTOK: MTOK,
     MODELS: MODELS, PROFILES: PROFILES, ASSUMPTIONS: ASSUMPTIONS, SCENARIOS: SCENARIOS,
     USAGE_DEFAULTS: USAGE_DEFAULTS, DEFAULT_PROFILE: DEFAULT_PROFILE,
     findModel: findModel, findProfile: findProfile, allowedModels: allowedModels, defaultModelFor: defaultModelFor,
