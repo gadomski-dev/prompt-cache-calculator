@@ -1,0 +1,1798 @@
+<!doctype html>
+<html lang="en" data-edition="white">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt cache cost calculator · Gadomski.DEV</title>
+<script>
+  // Edition (White or Graphite) comes from ?edition= or from the last choice. Never from the hash: the hash is CacheModel state.
+  (function () {
+    var e = 'white';
+    try {
+      var q = new URLSearchParams(location.search).get('edition');
+      if (q === 'graphite' || q === 'white') e = q;
+      else { var s = localStorage.getItem('gd-edition'); if (s === 'graphite' || s === 'white') e = s; }
+    } catch (x) { /* file:// or storage off */ }
+    document.documentElement.setAttribute('data-edition', e);
+  })();
+</script>
+<style>
+  @font-face { font-family: "League Spartan"; src: url("fonts/LeagueSpartan-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: "Geist"; src: url("fonts/Geist-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: "Geist Mono"; src: url("fonts/GeistMono-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+
+  :root, [data-edition="white"] {
+    --gd-signal: #FF5C18; --gd-ink: #101010; --gd-paper: #FFFFFF; --gd-studio: #FAFAF8; --gd-mist: #F1F1EE;
+    --gd-fog: #E4E4E0; --gd-slate: #5A5A5A; --gd-ember: #C2410C; --gd-g900: #1C1F23; --gd-g800: #2B2F35;
+    --gd-g700: #3A3F47; --gd-g600: #4A5059; --gd-steel: #9AA0A8; --gd-glow: #FF8A5B;
+    --gd-crimson: #D81B3A; --gd-crimson-d: #FF6275; --gd-circuit: #0B7F45; --gd-circuit-d: #3BDB8A;
+    --gd-blueprint: #2450FF; --gd-blueprint-d: #7D97FF; --gd-volt: #FFD426;
+
+    --font-display: "League Spartan", system-ui, sans-serif;
+    --font-text: "Geist", system-ui, sans-serif;
+    --font-mono: "Geist Mono", ui-monospace, monospace;
+
+    --sp-1: 3px; --sp-2: 5px; --sp-3: 8px; --sp-4: 13px; --sp-5: 21px; --sp-6: 34px; --sp-7: 55px; --sp-8: 89px; --sp-9: 144px;
+    --r-chip: 8px; --r-card: 13px; --r-panel: 21px; --r-pill: 999px;
+    --ease-calm: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-calm-io: cubic-bezier(0.4, 0, 0.6, 1);
+    --dur-tick: 200ms; --dur-step: 320ms; --dur-move: 520ms; --dur-hold: 1360ms; --stagger: 120ms;
+
+    --page: var(--gd-studio); --card: var(--gd-paper); --well: var(--gd-studio);
+    --band: var(--gd-mist); --raised: var(--gd-paper);
+    --line: rgba(16,16,16,.12); --line-2: rgba(16,16,16,.24); --line-input: rgba(16,16,16,.46);
+    --text: var(--gd-ink); --text-2: var(--gd-slate);
+    --inv-bg: var(--gd-ink); --inv-fg: var(--gd-paper);
+    --accent: var(--gd-signal); --accent-text: var(--gd-ember); --on-accent: var(--gd-ink);
+    --lost: var(--gd-crimson); --saved: var(--gd-circuit); --hypo: var(--gd-blueprint);
+    --partial: var(--gd-ember);
+    --on-role: var(--gd-paper);
+    --lost-tint: rgba(216,27,58,.08); --saved-tint: rgba(11,127,69,.18); --accent-tint: rgba(255,92,24,.07);
+    --neutral: var(--gd-ink); /* neutral data fills (still-cached time, warm traffic); never brighter than the hero */
+    --focus: var(--gd-ember);
+    --input-bg: var(--gd-paper);
+    --shadow-card: 0 1px 2px rgba(16,16,16,.04), 0 13px 34px -21px rgba(16,16,16,.22);
+    --dots: rgba(16,16,16,.07);
+    color-scheme: light;
+  }
+  /* Graphite: page and cards both sit on Graphite #2B2F35 (the edition base), separated by Spotlight #4A5059 hairlines,
+     the way White separates Studio from Paper. Cards on #3A3F47 were tried and rejected: Steel labels drop to 4.0:1 there. */
+  [data-edition="graphite"] {
+    --page: var(--gd-g800); --card: var(--gd-g800); --well: var(--gd-g900);
+    --band: var(--gd-g900); --raised: var(--gd-g700);
+    --line: var(--gd-g600); --line-2: rgba(255,255,255,.26); --line-input: rgba(255,255,255,.38);
+    --text: var(--gd-paper); --text-2: var(--gd-steel);
+    --inv-bg: var(--gd-paper); --inv-fg: var(--gd-ink);
+    --accent: var(--gd-signal); --accent-text: var(--gd-glow); --on-accent: var(--gd-ink);
+    --lost: var(--gd-crimson-d); --saved: var(--gd-circuit-d); --hypo: var(--gd-blueprint-d);
+    --partial: var(--gd-glow);
+    --on-role: var(--gd-ink);
+    --lost-tint: rgba(255,98,117,.12); --saved-tint: rgba(59,219,138,.14); --accent-tint: rgba(255,92,24,.10);
+    --neutral: var(--gd-steel);
+    --focus: var(--gd-signal);
+    --input-bg: var(--gd-g900);
+    --shadow-card: 0 0 0 1px rgba(255,255,255,.04), 0 21px 55px -34px rgba(0,0,0,.6);
+    --dots: rgba(255,255,255,.065);
+    color-scheme: dark;
+  }
+  @media (prefers-reduced-motion: reduce) { :root { --dur-step: 0ms; --dur-move: 0ms; --dur-hold: 0ms; } }
+
+  /* ------------------------------------------------------------ base */
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page); color: var(--text); }
+  body { font-family: var(--font-text); font-size: 17px; line-height: 28px; -webkit-font-smoothing: antialiased; transition: background var(--dur-step) var(--ease-calm); }
+  .wrap { max-width: 1920px; margin: 0 auto; padding: 0 34px; }
+  .mono { font-family: var(--font-mono); }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .lost { color: var(--lost); }
+  .saved { color: var(--saved); }
+  .partial { color: var(--partial); }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button { font: inherit; color: inherit; }
+  [hidden] { display: none !important; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* ------------------------------------------------------------ header */
+  .hd { position: relative; padding: 21px 0 21px; }
+  .hd::before { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background-image: radial-gradient(var(--dots) 1.1px, transparent 1.6px); background-size: 22px 22px;
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.6) 40%, transparent 75%);
+    mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.6) 40%, transparent 75%); }
+  .hd .wrap { position: relative; }
+  .row1 { display: flex; align-items: center; justify-content: space-between; gap: 21px; }
+  .brand { display: flex; align-items: center; gap: 13px; }
+  .gd-mark { display: block; flex: none; }
+  .gd-mark .t { fill: var(--text); }
+  .gd-mark .g { fill: var(--inv-fg); }
+  .brand .bn { font-weight: 600; font-size: 17px; letter-spacing: -0.005em; }
+  .tele { font-family: var(--font-mono); font-weight: 500; font-size: 13px; line-height: 1.4; letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); }
+  .brand .tele { margin-left: 8px; padding-left: 21px; border-left: 1px solid var(--line-2); }
+  .actions { display: flex; gap: 8px; align-items: center; }
+  .row2 { display: flex; align-items: flex-end; justify-content: space-between; gap: 34px; margin-top: 21px; }
+  h1 { font-family: var(--font-display); font-weight: 700; font-size: 55px; line-height: .95; letter-spacing: -.035em; margin: 0; }
+  .lede { margin: 8px 0 0; color: var(--text-2); font-size: 17px; line-height: 28px; max-width: 68ch; }
+  .globals { display: flex; gap: 13px 21px; align-items: flex-start; }
+  .gctl { display: flex; flex-direction: column; gap: 5px; }
+  .gctl .gl { display: flex; align-items: center; gap: 8px; min-height: 22px; white-space: nowrap; }
+  .gctl > .btn, .gctl > input { align-self: flex-start; }
+  .k { font-family: var(--font-mono); font-weight: 500; font-size: 13px; line-height: 1.4; letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); }
+  .gcapr { display: flex; align-items: center; gap: 8px; }
+  .gcapr .mk.q { padding: 1px 5px; }
+  .gcap { font-size: 13px; line-height: 18px; color: var(--text-2); font-family: var(--font-mono); white-space: nowrap; }
+
+  /* buttons */
+  .btn { display: inline-flex; align-items: center; gap: 8px; border: 0; cursor: pointer; border-radius: var(--r-pill);
+    font-family: var(--font-text); font-weight: 500; font-size: 15px; line-height: 1; padding: 11px 18px; background: transparent; color: var(--text);
+    box-shadow: inset 0 0 0 1px var(--line-2); transition: box-shadow var(--dur-tick) var(--ease-calm), transform var(--dur-tick) var(--ease-calm), background var(--dur-tick) var(--ease-calm); white-space: nowrap; }
+  .btn:hover { box-shadow: inset 0 0 0 1px var(--text); }
+  .btn.primary { background: var(--inv-bg); color: var(--inv-fg); box-shadow: none; }
+  .btn.primary:hover { transform: translateY(-1px); }
+  .btn kbd { font-family: var(--font-mono); font-size: 11px; font-weight: 500; letter-spacing: .06em; padding: 2px 5px; border-radius: 4px; box-shadow: inset 0 0 0 1px currentColor; opacity: .7; }
+  .btn[aria-pressed="true"], .btn[aria-expanded="true"] { box-shadow: inset 0 0 0 1px var(--text); }
+
+  /* inputs */
+  .selw { position: relative; display: inline-block; }
+  .selw::after { content: ""; position: absolute; right: 15px; top: 50%; width: 7px; height: 7px; margin-top: -6px;
+    border-right: 1.5px solid var(--text-2); border-bottom: 1.5px solid var(--text-2); transform: rotate(45deg); pointer-events: none; }
+  select { -webkit-appearance: none; appearance: none; font: 500 17px/1 var(--font-text); color: var(--text); background: var(--input-bg);
+    border: 1px solid var(--line-input); border-radius: var(--r-chip); padding: 0 40px 0 13px; height: 44px; cursor: pointer; }
+  select option { background: var(--card); color: var(--text); }
+  input.num { font: 500 17px/1 var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); background: var(--input-bg);
+    border: 1px solid var(--line-input); border-radius: var(--r-chip); padding: 0 11px; height: 38px; width: 104px; text-align: right; }
+  input.num.tok { width: 124px; }
+  input.num.big { height: 44px; width: 132px; }
+  input.num:focus, select:focus { outline: 2px solid var(--focus); outline-offset: 2px; }
+  .unit { font-family: var(--font-mono); font-size: 14px; color: var(--text-2); white-space: nowrap; }
+  .fld .ft .unit { flex: none; width: 52px; }
+  .hint { font-family: var(--font-mono); font-size: 14px; color: var(--text-2); white-space: nowrap; min-width: 52px; }
+
+  input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 24px; background: transparent; margin: 3px 0 0; cursor: pointer; --p: 50%; }
+  input[type=range]::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: linear-gradient(to right, var(--text) var(--p), var(--line-2) var(--p)); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -8px; border-radius: 50%;
+    background: var(--text); border: 3px solid var(--card); box-shadow: 0 0 0 1px var(--text); transition: transform var(--dur-tick) var(--ease-calm); }
+  input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.12); }
+  input[type=range]::-moz-range-track { height: 4px; border-radius: 2px; background: var(--line-2); }
+  input[type=range]::-moz-range-progress { height: 4px; border-radius: 2px; background: var(--text); }
+  input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--text); border: 3px solid var(--card); }
+
+  /* switch */
+  .sw { display: flex; gap: 13px; align-items: flex-start; font-weight: 500; }
+  .sw label { cursor: pointer; }
+  .sw input { -webkit-appearance: none; appearance: none; flex: none; width: 40px; height: 24px; margin: 2px 0 0; border-radius: var(--r-pill);
+    background: var(--line-input); position: relative; cursor: pointer; transition: background var(--dur-tick) var(--ease-calm); }
+  .sw input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--card);
+    transition: transform var(--dur-tick) var(--ease-calm); }
+  .sw input:checked { background: var(--text); }
+  .sw input:checked::after { transform: translateX(16px); }
+  .sw .swt { display: flex; flex-direction: column; gap: 2px; }
+  .sw .swd { font-weight: 400; font-size: 15px; line-height: 22px; color: var(--text-2); }
+
+  /* markers (quiet badges) */
+  .mk { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-weight: 500; font-size: 12px; line-height: 1;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); padding: 4px 6px; border-radius: 6px;
+    box-shadow: inset 0 0 0 1px var(--line-2); white-space: nowrap; cursor: help; vertical-align: middle; }
+  .mk::before { content: ""; width: 6px; height: 6px; background: var(--text-2); flex: none; }
+  .mk.unv, .mk.hyp { box-shadow: none; border: 1px dashed var(--hypo); color: var(--hypo); padding: 3px 5px; }
+  .mk.unv::before, .mk.hyp::before { background: var(--hypo); }
+  .mk.mine::before { background: var(--text); border-radius: 50%; }
+  .mk.mine { color: var(--text); }
+  .mk.api::before { background: transparent; box-shadow: inset 0 0 0 1px var(--text-2); }
+  .mk.lc::before { background: var(--text); }
+  .mk.lc { color: var(--text); }
+  .mk:empty { display: none; }
+  .mk.q { padding: 3px 6px; letter-spacing: 0; text-transform: none; }
+  .mk.q::before { display: none; }
+
+  /* tooltip (one floating element, clamped to the viewport) */
+  #tip { position: fixed; z-index: 50; max-width: 34ch; background: var(--inv-bg); color: var(--inv-fg); font: 400 15px/1.5 var(--font-text);
+    padding: 10px 13px; border-radius: var(--r-chip); pointer-events: none; opacity: 0; transition: opacity var(--dur-tick) var(--ease-calm); }
+  #tip.on { opacity: 1; pointer-events: auto; }
+
+  /* ------------------------------------------------------------ drawer: more settings */
+  .drawer { margin: 0 0 21px; }
+  .drawer .card { padding: 26px 34px 30px; }
+  .dgrid { display: grid; grid-template-columns: 1.15fr 1fr 1fr .8fr; gap: 0 34px; }
+  .dgrp + .dgrp { border-left: 1px solid var(--line); padding-left: 34px; }
+  .dgrp h3 { font-family: var(--font-text); font-weight: 600; font-size: 17px; line-height: 1.4; margin: 0 0 8px; }
+  .dgrp .dnote { font-size: 13px; line-height: 20px; color: var(--text-2); margin: -4px 0 8px; }
+  .row { display: flex; align-items: center; gap: 8px; padding: 5px 0; min-height: 46px; }
+  .row .lb { flex: 1; font-size: 15px; line-height: 20px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .row .unit { min-width: 52px; }
+  .drawer .fld { padding: 6px 0; }
+
+  /* ------------------------------------------------------------ one-miss strip */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r-card); box-shadow: var(--shadow-card); }
+  .missbar { display: flex; align-items: center; gap: 34px; padding: 15px 26px; }
+  .missbar .mlead { display: flex; align-items: baseline; gap: 13px; white-space: nowrap; }
+  .missbar .mlab { font-weight: 500; font-size: 17px; }
+  .missbar .mval { font-family: var(--font-display); font-weight: 700; font-size: 44px; line-height: .9; letter-spacing: -.03em; }
+  .missbar .mcr { font-family: var(--font-mono); font-size: 14px; color: var(--text-2); }
+  .missbar .mfx { font-family: var(--font-mono); font-size: 14px; line-height: 22px; color: var(--text-2); }
+  .missbar .mpair { font-size: 15px; line-height: 22px; }
+  .missbar .mpair b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .missbar .sep { width: 1px; align-self: stretch; background: var(--line); }
+  .missbar .warn { margin-left: auto; max-width: 560px; font-size: 14px; line-height: 20px; color: var(--text-2); display: flex; gap: 8px; cursor: help; }
+  .missbar .warn::before { content: "Note"; font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; border: 1px solid var(--line-2); border-radius: 4px; padding: 0 5px; height: 18px; line-height: 17px; flex: none; margin-top: 1px; }
+  .missbar .warn:empty { display: none; }
+
+  /* ------------------------------------------------------------ tabs */
+  .rail { display: flex; gap: 3px; margin: 21px 0 0; padding: 3px; background: var(--band); border: 1px solid var(--line-2); border-radius: var(--r-pill); }
+  .tab { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; align-items: baseline; column-gap: 8px; row-gap: 3px; border: 0; background: transparent; cursor: pointer;
+    border-radius: var(--r-pill); padding: 9px 22px; color: var(--text-2); text-align: left; transition: color var(--dur-tick) var(--ease-calm), background var(--dur-tick) var(--ease-calm); }
+  .tab:hover { color: var(--text); }
+  .tab .ti { font-family: var(--font-mono); font-size: 13px; font-weight: 500; letter-spacing: .06em; }
+  .tab .tn { font-weight: 500; font-size: 18px; line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tab .tf { grid-column: 2; font-family: var(--font-mono); font-size: 13px; line-height: 1.2; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tab[aria-selected="true"] { background: var(--inv-bg); color: var(--inv-fg); }
+  [data-edition="graphite"] .tab[aria-selected="true"] { background: var(--gd-g600); color: var(--gd-paper); }
+  .tab[aria-selected="true"] .ti { position: relative; }
+  .tab[aria-selected="true"] .ti::before { content: ""; position: absolute; left: -12px; top: 50%; width: 6px; height: 6px; margin-top: -4px; background: var(--gd-signal); }
+
+  /* slim tab rail on the brand line, recording mode only (the full rail is hidden there); takes no extra height */
+  .recrail { display: none; gap: 3px; padding: 3px; background: var(--band); border: 1px solid var(--line-2); border-radius: var(--r-pill); }
+  body.rec .recrail { display: flex; }
+  .recrail .rt { display: inline-flex; align-items: baseline; gap: 8px; border: 0; background: transparent; cursor: pointer; border-radius: var(--r-pill);
+    padding: 5px 15px 5px 21px; color: var(--text-2); font-weight: 500; font-size: 16px; line-height: 1; white-space: nowrap; transition: color var(--dur-tick) var(--ease-calm), background var(--dur-tick) var(--ease-calm); }
+  .recrail .rt:hover { color: var(--text); }
+  .recrail .rt .ti { position: relative; font-family: var(--font-mono); font-size: 13px; letter-spacing: .06em; }
+  .recrail .rt[aria-current="true"] { background: var(--inv-bg); color: var(--inv-fg); }
+  [data-edition="graphite"] .recrail .rt[aria-current="true"] { background: var(--gd-g600); color: var(--gd-paper); }
+  .recrail .rt[aria-current="true"] .ti::before { content: ""; position: absolute; left: -12px; top: 50%; width: 6px; height: 6px; margin-top: -4px; background: var(--gd-signal); }
+
+  /* episode shots: quiet indicator (recording mode) and the jump list.
+     Pinned to the frame's bottom edge so it clears the tallest result card (Orchestrator ends at y 1047 of 1080). */
+  .recdock { display: none; position: fixed; bottom: 3px; right: 13px; z-index: 40; align-items: flex-end; gap: 8px; }
+  body.rec .recdock { display: flex; }
+  .shotind { border: 0; cursor: pointer; font-family: var(--font-text); font-weight: 500; font-size: 14px; line-height: 1; letter-spacing: .04em;
+    font-variant-caps: all-small-caps; color: var(--text-2); padding: 4px 11px; border-radius: var(--r-pill);
+    background: color-mix(in srgb, var(--page) 86%, transparent); box-shadow: inset 0 0 0 1px var(--line); white-space: nowrap; }
+  .shotind:hover, .shotind[aria-expanded="true"] { color: var(--text); box-shadow: inset 0 0 0 1px var(--line-2); }
+  .shotind .tnum { font-variant-numeric: tabular-nums; }
+  /* On camera the indicator stays invisible (still clickable): it shows for 2.5 s after a shot step, on hover and while its list is open */
+  body.rec .shotind { opacity: 0; transition: opacity var(--dur-step) var(--ease-calm), color var(--dur-tick) var(--ease-calm); }
+  body.rec .recdock.peek .shotind, body.rec .shotind:hover, body.rec .shotind:focus-visible, body.rec .shotind[aria-expanded="true"] { opacity: 1; }
+  .shotpop { position: fixed; z-index: 45; width: 360px; max-height: calc(100vh - 80px); overflow: auto; padding: 8px; background: var(--card);
+    border: 1px solid var(--line-2); border-radius: var(--r-card); box-shadow: var(--shadow-card), 0 21px 55px -21px rgba(0,0,0,.35); }
+  .shotpop .sph { padding: 6px 10px 8px; font-size: 13px; line-height: 18px; color: var(--text-2); }
+  .shotpop ol { list-style: none; margin: 0; padding: 0; }
+  .shotpop .shot { display: grid; grid-template-columns: 30px minmax(0, 1fr); align-items: baseline; gap: 8px; width: 100%; border: 0; background: transparent; cursor: pointer;
+    text-align: left; padding: 6px 10px 6px 14px; border-radius: var(--r-chip); font-size: 15px; line-height: 20px; color: var(--text); position: relative; }
+  .shotpop .shot:hover, .shotpop .shot:focus-visible { background: var(--well); }
+  .shotpop .shot .sn { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; color: var(--text-2); font-variant-numeric: tabular-nums; }
+  .shotpop .shot[aria-current="true"] { font-weight: 600; }
+  .shotpop .shot[aria-current="true"]::before { content: ""; position: absolute; left: 4px; top: 13px; width: 6px; height: 6px; background: var(--gd-signal); }
+  .shotpop .shot.nt { color: var(--text-2); }
+  .shotpop .shot .ntag { margin-left: 8px; font-family: var(--font-mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2);
+    padding: 1px 5px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--line-2); white-space: nowrap; }
+
+  /* ------------------------------------------------------------ panel */
+  .phead { display: flex; align-items: baseline; gap: 21px; margin: 34px 0 21px; }
+  h2 { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1.05; letter-spacing: -.035em; margin: 0; white-space: nowrap; }
+  .psub { color: var(--text-2); font-size: 17px; line-height: 28px; }
+  .phead .mk { align-self: center; margin-left: auto; }
+  .reccap { display: none; }
+  .pgrid { display: grid; grid-template-columns: 520px minmax(0, 1fr); gap: 21px; align-items: start; }
+  .tabpanel.anim { animation: fadein var(--dur-step) var(--ease-calm) both; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+
+  .inp { padding: 26px 30px 22px; display: flex; flex-direction: column; }
+  .inp > .k { margin-bottom: 8px; }
+  .fld { padding: 10px 0 8px; }
+  .fld .ft { display: flex; align-items: center; gap: 8px; }
+  .fld .ft .lb { flex: 1; min-width: 0; font-weight: 500; font-size: 17px; line-height: 24px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .fld.dim .ft .lb, .fld.dim .unit { color: var(--text-2); }
+  .fld.dim input[type=range] { opacity: .55; }
+  .fixbox { margin: 13px 0 4px; padding: 16px 18px 10px; background: var(--well); border: 1px solid var(--line); border-radius: var(--r-card); }
+  .fixbox .fld { padding-bottom: 2px; }
+  details.more { margin-top: 10px; border-top: 1px solid var(--line); }
+  details.more > summary, details.maths > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 13px 0 5px;
+    font-weight: 500; font-size: 15px; color: var(--text-2); }
+  details.more > summary::-webkit-details-marker, details.maths > summary::-webkit-details-marker { display: none; }
+  details.more > summary::before, details.maths > summary::before { content: ""; width: 6px; height: 6px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); transition: transform var(--dur-tick) var(--ease-calm); }
+  details[open] > summary::before { transform: rotate(45deg); }
+  details.more > summary:hover, details.maths > summary:hover { color: var(--text); }
+  details.more > summary { color: var(--text); }
+  .inc { margin-top: 13px; padding-top: 16px; border-top: 1px solid var(--line); }
+  .inp .note { font-size: 13px; line-height: 20px; color: var(--text-2); margin-top: 6px; }
+
+  /* result card */
+  .res { padding: 30px 34px 26px; position: relative; }
+  .res::before, .res::after { content: ""; position: absolute; width: 21px; height: 21px; pointer-events: none; opacity: .5; }
+  .res::before { top: 10px; left: 10px; border-top: 1px solid var(--line-2); border-left: 1px solid var(--line-2); }
+  .res::after { bottom: 10px; right: 10px; border-bottom: 1px solid var(--line-2); border-right: 1px solid var(--line-2); }
+  .hrow { display: grid; grid-template-columns: minmax(0, auto) 1fr; align-items: start; gap: 21px 55px; }
+  .hlab { display: flex; align-items: center; gap: 13px; flex-wrap: wrap; }
+  .hval { font-family: var(--font-display); font-weight: 700; font-size: 144px; line-height: .9; letter-spacing: -.035em; margin-top: 13px; min-width: 4.2ch; white-space: nowrap; }
+  .hval .u { font-size: .38em; letter-spacing: -.02em; margin-left: .22em; }
+  .hsub { font-family: var(--font-mono); font-size: 15px; color: var(--text-2); margin-top: 8px; min-height: 22px; }
+  .kpis { display: flex; gap: 34px 30px; flex-wrap: wrap; justify-content: flex-start; padding-bottom: 6px; }
+  .kpi .kv { font-family: var(--font-display); font-weight: 700; font-size: 55px; line-height: .95; letter-spacing: -.03em; margin-top: 8px; white-space: nowrap; }
+  .kpi .kc { font-family: var(--font-mono); font-size: 13px; color: var(--text-2); margin-top: 6px; white-space: nowrap; min-height: 18px; }
+  .story { font-size: 21px; line-height: 1.5; max-width: 68ch; margin: 26px 0 0; }
+  .story b { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .story .q, .missbar .q { color: var(--text-2); }
+  .missbar .q { font-size: 13px; }
+  .vis { margin-top: 26px; }
+  .foot2 { font-size: 15px; line-height: 1.5; color: var(--text-2); margin-top: 13px; max-width: 110ch; }
+  details.maths { margin-top: 18px; border-top: 1px solid var(--line); }
+  .well { background: var(--well); border: 1px solid var(--line); border-radius: var(--r-card); padding: 18px 22px; font-family: var(--font-mono); font-size: 14px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
+  .well table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .well th { text-align: left; font-weight: 500; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); border-bottom: 1px solid var(--line-2); padding: 6px 10px 6px 0; }
+  .well td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .well td.v { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  /* timeline (gap vs cache lifetime) */
+  .tl { position: relative; padding: 34px 0 30px; }
+  .tl .track { position: relative; height: 34px; border-radius: 8px; background: var(--well); box-shadow: inset 0 0 0 1px var(--line); }
+  .tl .life { position: absolute; top: 0; bottom: 0; left: 0; background: var(--saved-tint); border-radius: 8px 0 0 8px; box-shadow: inset 0 0 0 1px rgba(11,127,69,.35); }
+  [data-edition="graphite"] .tl .life { box-shadow: inset 0 0 0 1px rgba(59,219,138,.35); }
+  .tl .seg { position: absolute; top: 11px; height: 12px; }
+  .tl .seg.n { background: var(--neutral); border-radius: 6px 0 0 6px; }
+  .tl .seg.l { background: var(--lost); }
+  .tl .seg.p { background: repeating-linear-gradient(135deg, var(--partial) 0 5px, transparent 5px 8px); }
+  .tl .seg.end { border-radius: 0 6px 6px 0; }
+  .tl .tick { position: absolute; top: -6px; bottom: -6px; width: 2px; margin-left: -1px; background: var(--text); }
+  .tl .tlab { position: absolute; bottom: 100%; margin-bottom: 8px; transform: translateX(-50%); white-space: nowrap; font-size: 14px; line-height: 1; font-weight: 500; }
+  .tl .tlab.r { transform: translateX(-100%); }
+  .tl .tlab.lft { transform: none; }
+  .tl .blab { position: absolute; top: 100%; margin-top: 8px; transform: translateX(-50%); white-space: nowrap; font-family: var(--font-mono); font-size: 13px; color: var(--text-2); }
+  .tl .poll { position: absolute; top: 12px; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--card); box-shadow: 0 0 0 2px var(--text); }
+  .legend { display: flex; gap: 8px 21px; flex-wrap: wrap; font-size: 14px; line-height: 20px; color: var(--text-2); margin-top: 6px; }
+  .legend .sw2 { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; }
+
+  /* bars */
+  .bars { display: flex; flex-direction: column; gap: 10px; }
+  .bar { display: grid; grid-template-columns: 290px minmax(0, 1fr) 150px; align-items: center; gap: 16px; border: 0; background: transparent; padding: 6px 10px; margin: 0 -10px; border-radius: 10px; text-align: left; color: inherit; }
+  button.bar { cursor: pointer; }
+  button.bar:hover { background: var(--well); }
+  .bar .bl { font-weight: 500; font-size: 17px; line-height: 22px; display: flex; flex-direction: column; gap: 4px; }
+  .bar .bl .mk { align-self: flex-start; }
+  .bar .track { height: 30px; background: var(--well); border-radius: 6px; position: relative; overflow: hidden; box-shadow: inset 0 0 0 1px var(--line); }
+  .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--neutral); border-radius: 6px; overflow: hidden; }
+  .bar.fixok .fill { background: var(--saved); }
+  .bar .bl .swd { font-weight: 400; font-size: 14px; line-height: 19px; color: var(--text-2); }
+  .bar .fill .m { position: absolute; left: 0; top: 0; bottom: 0; background: var(--lost); }
+  .bar .bv { font-family: var(--font-text); font-weight: 600; font-size: 26px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -.01em; }
+  .bar.on { background: var(--well); box-shadow: inset 0 0 0 1px var(--line-2); }
+
+  /* dots (parallel agents) */
+  .dots { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding-top: 26px; }
+  .dot { width: 40px; height: 40px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--line-2); display: grid; place-items: center;
+    font-family: var(--font-mono); font-weight: 500; font-size: 15px; color: var(--text-2); }
+  .dot.w { background: var(--saved); color: var(--on-role); box-shadow: none; }
+  .dot.c { background: var(--lost) linear-gradient(135deg, transparent 44%, var(--card) 44% 52%, transparent 52%); color: var(--on-role); box-shadow: none; }
+  .dot.p { background: var(--card); color: var(--partial); box-shadow: inset 0 0 0 3px var(--partial); }
+  .dots .more { font-family: var(--font-mono); font-size: 15px; color: var(--text-2); }
+  .limit { width: 2px; height: 52px; background: var(--text); position: relative; margin: 0 6px; }
+  .limit span { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); margin-bottom: 6px; white-space: nowrap; font-family: var(--font-mono); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+
+  /* tiles (budget, TTL) */
+  .tiles { display: grid; gap: 13px; }
+  .tile { border: 1px solid var(--line); border-radius: var(--r-card); padding: 21px 22px 18px; background: var(--card); position: relative; min-width: 0; container-type: inline-size; }
+  .tile.yours { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+  .tile.hypo { border: 1.5px dashed var(--line-input); }
+  .tile.hypo .tv { color: var(--text-2); }
+  .tile.hypo .tt::after { content: " (not offered)"; color: var(--text-2); font-weight: 400; }
+  .tile .th { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  #strip-tiles .tile .th { min-height: 58px; }
+  .tile .tt { font-weight: 600; font-size: 19px; line-height: 1.3; }
+  .tile .tv { font-family: var(--font-display); font-weight: 700; font-size: clamp(34px, 23cqi, 72px); line-height: .95; letter-spacing: -.035em; margin-top: 16px; white-space: nowrap; }
+  .tile .tv .u { font-size: .4em; letter-spacing: -.02em; margin-left: .22em; }
+  #s6-tiles { grid-template-columns: 1.4fr 1fr 1fr; margin-top: 16px; }
+  #s6-tiles .tile.yours .tv { font-size: clamp(44px, 28cqi, 96px); }
+  #strip-tiles { grid-template-columns: repeat(var(--cols, 4), minmax(0, 1fr)); margin-top: 16px; }
+  .tile .td { font-family: var(--font-mono); font-size: 14px; line-height: 20px; color: var(--text-2); margin-top: 8px; }
+  .tile .td b { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .tile .tn2 { font-size: 14px; line-height: 20px; color: var(--text-2); margin-top: 10px; }
+  .share { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 34px; align-items: center; margin-top: 26px; }
+  .share .sv { font-family: var(--font-display); font-weight: 700; font-size: 55px; line-height: .9; letter-spacing: -.035em; }
+  .stack { height: 30px; display: flex; border-radius: 6px; overflow: hidden; background: var(--well); box-shadow: inset 0 0 0 1px var(--line); }
+  .stack div { height: 100%; }
+
+  /* footer */
+  .foot { margin: 34px 0 34px; padding-top: 21px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 8px 34px; font-size: 14px; line-height: 22px; color: var(--text-2); }
+  .foot .tele { align-self: start; }
+  .exit { display: none; opacity: 0; background: var(--card); }
+  .exit:hover, .exit:focus { opacity: 1; }
+
+  /* ------------------------------------------------------------ recording mode: 1920 x 1080, no inputs */
+  body.rec .actions, body.rec .lede, body.rec .drawer, body.rec .rail, body.rec .inp, body.rec details.maths,
+  body.rec .foot, body.rec .phead .psub, body.rec .phead .mk, body.rec .gcapr.edit, body.rec .foot2.hideRec { display: none !important; }
+  body.rec .exit { display: inline-flex; height: 26px; padding: 0 13px; }
+  body.rec .hd { padding: 21px 0 13px; }
+  body.rec .row2 { margin-top: 16px; }
+  body.rec h1 { font-size: 44px; }
+  body.rec .globals select, body.rec .globals input { pointer-events: none; border-color: var(--line-2); }
+  body.rec .selw::after { display: none; }
+  body.rec select { padding-right: 13px; }
+  body.rec .missbar { padding: 14px 26px; }
+  body.rec .missbar .mlab { font-size: 21px; }
+  body.rec .missbar .mval { font-size: 55px; }
+  body.rec .missbar .mpair { font-size: 19px; line-height: 26px; }
+  body.rec .missbar .mfx { font-size: 15px; }
+  body.rec .missbar .warn { font-size: 16px; line-height: 22px; }
+  body.rec .phead { margin: 26px 0 16px; flex-direction: column; align-items: flex-start; gap: 8px; }
+  body.rec h2 { font-size: 55px; line-height: .95; }
+  body.rec .reccap { display: block; font-size: 21px; line-height: 1.4; font-weight: 500; color: var(--text-2); }
+  body.rec .pgrid { grid-template-columns: minmax(0, 1fr); }
+  body.rec .res { padding: 30px 44px 30px; }
+  body.rec .hval { font-size: 176px; }
+  body.rec .kpi .kv { font-size: 64px; }
+  body.rec .kpi .kc, body.rec .hsub { font-size: 17px; }
+  body.rec .k { font-size: 15px; }
+  body.rec .story { font-size: 28px; max-width: 76ch; margin-top: 26px; }
+  body.rec .tl .tlab { font-size: 19px; }
+  body.rec .tl .blab { font-size: 16px; }
+  body.rec .tl .track { height: 44px; }
+  body.rec .tl .seg { top: 14px; height: 16px; }
+  body.rec .tl .poll { top: 16px; width: 12px; height: 12px; margin-left: -6px; }
+  body.rec .legend { font-size: 18px; line-height: 26px; }
+  body.rec .bar { grid-template-columns: 420px minmax(0, 1fr) 210px; }
+  body.rec .bar .bl { font-size: 24px; line-height: 30px; }
+  body.rec .bar .track { height: 40px; }
+  body.rec .bar .bv { font-size: 38px; }
+  body.rec .foot2 { font-size: 20px; line-height: 1.45; }
+  body.rec .dot { width: 64px; height: 64px; font-size: 24px; }
+  body.rec .limit { height: 84px; width: 3px; }
+  body.rec .limit span { font-size: 17px; }
+  body.rec .tile .tt { font-size: 24px; }
+  body.rec .tile .tv { font-size: clamp(34px, 24cqi, 89px); }
+  body.rec .tile .td { font-size: 17px; line-height: 24px; }
+  body.rec .tile .tn2 { font-size: 16px; line-height: 22px; }
+  body.rec .mk { font-size: 13px; }
+  body.rec .share .sv { font-size: 89px; }
+  body.rec .stack { height: 40px; }
+  body.rec .missbar .mfx, body.rec .mk.q { display: none; }
+  body.rec .missbar .mpair .pl { white-space: nowrap; }
+  body.rec .missbar .warn { max-width: 540px; }
+  body.rec .bar .bl .swd { font-size: 16px; line-height: 20px; }
+  /* tabs that carry more visuals keep a smaller hero so the frame fits 1080 px */
+  body.rec #panel-s3 .hval, body.rec #panel-s4 .hval { font-size: 130px; }
+  body.rec #panel-s3 .story, body.rec #panel-s4 .story { font-size: 24px; margin-top: 18px; }
+  body.rec #panel-s3 .vis, body.rec #panel-s4 .vis { margin-top: 18px; }
+  body.rec #panel-s3 .tl { padding: 26px 0 22px; }
+  body.rec #panel-s3 .tl .track { height: 34px; }
+  body.rec #panel-s3 .tl .seg { top: 10px; height: 14px; }
+  body.rec #panel-s3 .tl .poll { top: 11px; }
+  body.rec #panel-s3 .bars, body.rec #panel-s4 .bars { gap: 4px; }
+  body.rec #panel-s3 .bar .track, body.rec #panel-s4 .bar .track { height: 34px; }
+  body.rec #panel-s3 .bar .bv, body.rec #panel-s4 .bar .bv { font-size: 34px; }
+  body.rec #panel-s3 .foot2 { font-size: 18px; margin-top: 8px; }
+  body.rec #panel-s4 .bar .bl { line-height: 26px; gap: 0; }
+  body.rec #panel-s4 .bar { padding-top: 4px; padding-bottom: 4px; }
+
+  /* ------------------------------------------------------------ narrower screens (viewers' laptops, tablets, phones) */
+  @media (max-width: 1680px) {
+    .row2 { flex-direction: column; align-items: stretch; gap: 21px; }
+    .globals { flex-wrap: wrap; }
+    .pgrid { grid-template-columns: 420px minmax(0, 1fr); }
+    .hrow { grid-template-columns: minmax(0, 1fr); }
+    .hval { font-size: 120px; min-width: 0; }
+    .bar { grid-template-columns: 220px minmax(0, 1fr) 120px; }
+    .tab { padding: 9px 16px 9px 20px; }
+    .tab .tn { font-size: 17px; }
+  }
+  @media (max-width: 1280px) {
+    .pgrid { grid-template-columns: minmax(0, 1fr); }
+    .pgrid > .res { order: -1; }  /* the result first, inputs under it */
+    .rail { overflow-x: auto; scrollbar-width: none; border-radius: var(--r-card); }
+    .rail::-webkit-scrollbar { display: none; }
+    .row1 { flex-wrap: wrap; row-gap: 13px; }
+    .actions { flex-wrap: wrap; }
+    .tab { flex: 0 0 auto; }
+    .tab .tn { overflow: visible; }
+    .missbar { flex-wrap: wrap; gap: 13px 34px; }
+    .missbar .warn { margin-left: 0; }
+    .dgrid { grid-template-columns: 1fr 1fr; gap: 21px 34px; }
+    .dgrp + .dgrp { border-left: 0; padding-left: 0; }
+    #s6-tiles, #strip-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .foot { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 0 16px; }
+    .row1 { flex-wrap: wrap; gap: 13px; }
+    .brand .tele, #btnRec { display: none; }
+    .actions { flex-wrap: wrap; }
+    h1 { font-size: 36px; }
+    .globals { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .gctl { min-width: 0; }
+    .gctl .gl, .gcapr { flex-wrap: wrap; white-space: normal; }
+    .gctl .mk { white-space: normal; }
+    .globals select, .globals .selw { width: 100%; }
+    .gctl .gcap { white-space: normal; }
+    .missbar { flex-direction: column; align-items: flex-start; gap: 8px; padding: 13px 16px; }
+    .missbar .sep { display: none; }
+    .missbar .mlead { flex-wrap: wrap; white-space: normal; }
+    .missbar .warn { max-width: none; }
+    .phead { flex-wrap: wrap; }
+    .phead .mk { margin-left: 0; }
+    h2 { white-space: normal; font-size: 28px; }
+    .inp, .res { padding: 18px 16px; }
+    .hval { font-size: 72px; }
+    .kpi .kv { font-size: 34px; }
+    .story { font-size: 17px; }
+    .bar { grid-template-columns: minmax(0, 1fr) auto; }
+    .bar .track { grid-column: 1 / -1; grid-row: 2; }
+    .bar .bv { font-size: 22px; }
+    .dots .dot { width: 30px; height: 30px; font-size: 12px; }
+    .tl .tlab, .tl .blab { font-size: 12px; }
+    .dgrid { grid-template-columns: minmax(0, 1fr); }
+    .dgrp + .dgrp { border-top: 1px solid var(--line); padding-top: 13px; }
+    .row .lb { min-width: 0; }
+    #s6-tiles, #strip-tiles { grid-template-columns: minmax(0, 1fr); }
+    .share { grid-template-columns: minmax(0, 1fr); }
+    .fld .ft { flex-wrap: wrap; }
+  }
+  #shutoffPop { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 640px; width: calc(100% - 48px);
+    display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 12px; background: var(--lost); color: #fff;
+    font-weight: 600; font-size: 18px; line-height: 26px; box-shadow: 0 8px 28px rgba(0,0,0,.25); }
+  #shutoffPop[hidden] { display: none; }
+  #shutoffPop p { margin: 0; flex: 1; }
+  #shutoffPop button { flex: none; border: 2px solid #fff; background: transparent; color: #fff; font: inherit; padding: 6px 16px; border-radius: 999px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="wrap">
+    <div class="row1">
+      <div class="brand">
+        <svg class="gd-mark" viewBox="0 0 100 100" width="34" height="34" role="img" aria-label="Gadomski.DEV"><rect class="t" width="100" height="100" rx="22"/><path class="g" d="M42.64 47.83H62.57V50.41Q62.57 54.65 61.17 58.31Q59.78 61.97 57.17 64.72Q54.57 67.47 50.94 69.01Q47.31 70.54 42.84 70.54Q38.22 70.54 34.5 69Q30.78 67.45 28.11 64.69Q25.44 61.92 24.01 58.25Q22.58 54.58 22.58 50.32Q22.58 46.1 24.01 42.43Q25.44 38.75 28.11 36Q30.78 33.25 34.5 31.71Q38.22 30.17 42.84 30.17Q46.84 30.17 49.81 31.03Q52.78 31.9 54.87 33.3Q56.96 34.7 58.35 36.32Q59.73 37.95 60.58 39.45L50.77 43.95Q49.77 42.34 47.950 41.04Q46.13 39.73 42.84 39.73Q40.71 39.73 38.94 40.57Q37.18 41.41 35.92 42.87Q34.65 44.33 33.97 46.24Q33.29 48.16 33.29 50.32Q33.29 52.51 33.97 54.43Q34.65 56.35 35.92 57.81Q37.18 59.28 38.94 60.1Q40.71 60.92 42.84 60.92Q44.62 60.92 46.06 60.56Q47.51 60.2 48.55 59.5Q49.58 58.8 50.2 57.81Q50.81 56.81 50.95 55.57H42.64Z"/><rect x="66.9" y="59.31" width="10.52" height="10.52" fill="#FF5C18"/></svg>
+        <span class="bn">Gadomski.DEV</span>
+        <span class="tele" id="tele">EP.09 · Prompt cache</span>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnMore" type="button" aria-expanded="false" aria-controls="drawer">More settings</button>
+        <button class="btn" id="btnReset" type="button">Reset</button>
+        <button class="btn" id="btnShots" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="shotPop" title="Episode shots. PgDn / PgUp (or . and ,) step through the on-camera ones">Shots <kbd aria-hidden="true">PgDn</kbd></button>
+        <button class="btn" id="btnEd" type="button" title="Switch White / Graphite edition (key G)">Graphite <kbd>G</kbd></button>
+        <button class="btn primary" id="btnRec" type="button" aria-pressed="false" title="Keys 1-7 or arrow left / right switch tab, PgDn / PgUp step through the on-camera episode shots, Esc exits">Recording mode <kbd>R</kbd></button>
+      </div>
+      <nav class="recrail" id="recRail" aria-label="Scenarios"></nav>
+    </div>
+    <div class="row2">
+      <div>
+        <h1>Prompt cache cost calculator.</h1>
+        <p class="lede">What it costs when your tool's prompt cache expires: per break, per day and per month, for your tool and your model.</p>
+      </div>
+      <div class="globals" role="group" aria-label="Tool, model and context">
+        <div class="gctl">
+          <div class="gl"><label class="k" for="selProfile">Tool</label></div>
+          <span class="selw"><select id="selProfile"></select></span>
+        </div>
+        <div class="gctl">
+          <div class="gl"><label class="k" for="selModel">Model</label><span class="mk" id="mkModel"></span></div>
+          <span class="selw"><select id="selModel"></select></span>
+        </div>
+        <div class="gctl">
+          <div class="gl"><label class="k" for="ctxIn">Context</label><span class="mk" id="mkCtx"></span></div>
+          <input class="num big tok" id="ctxIn" type="text" inputmode="decimal" autocomplete="off" aria-describedby="ctxCap">
+          <span class="gcapr"><span class="gcap" id="ctxCap"></span><span class="mk q" tabindex="0" data-tip="Everything the agent re-sends with each request: chat, files, tool results. Measured in tokens.">?<span class="sr">: Everything the agent re-sends with each request: chat, files, tool results. Measured in tokens.</span></span></span>
+        </div>
+        <div class="gctl">
+          <div class="gl"><span class="k" id="ttlLbl">Cache lifetime</span><span class="mk" id="mkTtl"></span></div>
+          <button class="btn" id="ttlChip" type="button" aria-labelledby="ttlLbl ttlChip" aria-controls="drawer" aria-expanded="false" style="height:44px;border-radius:8px;font-family:var(--font-mono);font-size:17px;box-shadow:inset 0 0 0 1px var(--line-input)"></button>
+          <span class="gcapr edit"><span class="gcap">edit in More settings</span><span class="mk q" tabindex="0" data-tip="How long the provider keeps your context cached after the last request (also called TTL).">?<span class="sr">: How long the provider keeps your context cached after the last request (also called TTL).</span></span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="drawer" id="drawer" hidden aria-labelledby="drawerH">
+    <div class="card">
+      <h2 class="sr" id="drawerH">More settings</h2>
+      <div class="dgrid">
+        <div class="dgrp"><h3>Context and time</h3><div id="dg-ctx"></div></div>
+        <div class="dgrp"><h3>Cache lifetime and prices <span class="mk q" tabindex="0" data-tip="Cache read = the context is still cached, so it is read at a low price. Cache write = putting the context into the cache again, at a higher price.">?<span class="sr">: Cache read = the context is still cached, so it is read at a low price. Cache write = putting the context into the cache again, at a higher price.</span></span></h3><p class="dnote">Dollars per million tokens (MTok). Preset for your tool and model; every field is editable.</p><div id="dg-rates"></div></div>
+        <div class="dgrp" id="dg-lc-wrap"><h3>Long-context price</h3><p class="dnote">Used when a request (context + new input) is above the threshold.</p><div id="dg-lc"></div></div>
+        <div class="dgrp"><h3>One agent poll</h3><p class="dnote">What one "are you done?" request adds, on top of reading the cache.</p><div id="dg-poll"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card missbar" aria-label="Cost of one cache miss">
+    <div class="mlead"><span class="mlab">One cache miss costs</span><span class="mk q" tabindex="0" data-tip="You came back after the cache expired, so the whole context is written again at the write price instead of read at the cheap read price.">?<span class="sr">: You came back after the cache expired, so the whole context is written again at the write price instead of read at the cheap read price.</span></span><span class="mval lost" id="missVal" data-p="miss"></span><span class="mcr" id="missCr"></span><span class="mk api" id="missApi" hidden>API-equivalent</span></div>
+    <div class="sep"></div>
+    <div>
+      <div class="mpair" id="missPair"></div>
+      <div class="mfx" id="missFx"></div>
+    </div>
+    <div class="warn" id="warnings"></div>
+  </section>
+
+  <div class="rail" role="tablist" aria-label="Scenarios" id="rail"></div>
+  <div id="panels"></div>
+
+  <footer class="foot">
+    <div>
+      <div id="assume"></div>
+      <div>Sources: the fact IDs in tooltips (F…, E…, K…) point to <span class="mono">research/facts.md</span> in this episode's folder. Maths: <span class="mono">calculator/model.js</span>, documented in <span class="mono">calculator/README.md</span>. Same link format as <span class="mono">index.html</span>: replace the file name and the numbers stay the same.</div>
+    </div>
+    <div class="tele" id="asof"></div>
+  </footer>
+</main>
+<div class="recdock" id="recDock">
+  <button class="btn exit" id="btnExit" type="button">Exit recording (Esc)</button>
+  <button class="shotind" id="shotInd" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="shotPop"></button>
+</div>
+<div class="shotpop" id="shotPop" role="dialog" aria-label="Episode shots" hidden>
+  <div class="sph">Episode shots, in script order. PgDn / PgUp or . and , step through the numbered ones (the script's On screen blocks) and skip the ones marked Notes; a click opens any of them. Esc closes.</div>
+  <ol id="shotList"></ol>
+</div>
+<div id="tip" role="tooltip"></div>
+<div class="sr" aria-live="polite" id="live"></div>
+
+<script src="model.js"></script>
+<script>
+(function () {
+  'use strict';
+  var M = window.CacheModel;
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ------------------------------------------------------------------ field specs (plain-English labels)
+  var TOK = { unit: 'tokens', min: 0, max: 1000000, step: 10000, slider: true, tok: true };
+  function tok(o) { return Object.assign({}, TOK, o); }
+  var PRICE = { unit: '$/MTok', min: 0, step: 0.01 };
+  function price(label) { return Object.assign({ label: label }, PRICE); }
+  var F = {
+    'g.window': { label: 'Context window', unit: 'tokens', min: 0, max: 2000000, step: 1000, tok: true },
+    'g.useAbs': { label: 'Type the context size in tokens', type: 'toggle', desc: 'Off: context = window × % used.' },
+    'g.fillPct': { label: 'Context used', unit: '%', min: 0, max: 100, step: 1, slider: true },
+    'g.absTokens': tok({ label: 'Context size', max: 2000000 }),
+    'g.days': { label: 'Working days a month', unit: 'days', min: 1, max: 31, step: 1, slider: true },
+    'g.budget': { label: 'Monthly budget', unit: 'USD', min: 0, max: 3000, step: 10, slider: true },
+    'g.pollOut': { label: 'Output tokens', unit: 'tokens', min: 0, max: 5000, step: 10 },
+    'g.pollIn': { label: 'New input tokens', unit: 'tokens', min: 0, max: 5000, step: 10 },
+    'g.genMin': { label: 'Time to generate an answer', unit: 'min', min: 0, max: 5, step: 0.25 },
+    'g.gptHit': { label: 'GPT hit rate after 5 min', unit: '%', min: 0, max: 100, step: 1 },
+    'r.input': price('Input'), 'r.output': price('Output'), 'r.read': price('Cache read'),
+    'r.writeMain': price('Cache write, main chat'), 'r.writeSub': price('Cache write, subagents'),
+    'r.write5m': price('5-min write (Lifetimes tab)'), 'r.write1h': price('1-hour write (Lifetimes tab)'),
+    'r.ttlMain': { label: 'Lifetime, main chat', unit: 'min', min: 0, step: 1 },
+    'r.ttlSub': { label: 'Lifetime, subagents', unit: 'min', min: 0, step: 1 },
+    'r.usdPerCredit': { label: 'Dollars per AI credit', unit: '$', min: 0, step: 0.001 },
+    'r.lcThreshold': { label: 'Long-context above', unit: 'tokens', min: 0, step: 1000, tok: true },
+    'r.lcInput': price('Input'), 'r.lcOutput': price('Output'), 'r.lcRead': price('Cache read'),
+    'r.lcWriteMain': price('Write, main chat'), 'r.lcWriteSub': price('Write, subagents'),
+    'r.lcWrite5m': price('5-min write'), 'r.lcWrite1h': price('1-hour write'),
+
+    's1.minutes': { label: 'Break length', unit: 'min', min: 0, max: 120, step: 1, slider: true },
+    's1.perDay': { label: 'Breaks a day', unit: '', min: 0, max: 20, step: 1, slider: true },
+    's1.poll': { label: 'Fix: tell the agent you are leaving', type: 'toggle', desc: 'It polls every few minutes. A poll is a tiny request that resets the cache timer, so the cache does not expire.' },
+    's1.pollEvery': { label: 'Agent polls every', unit: 'min', min: 0.5, max: 10, step: 0.5, slider: true },
+    's1.inc': { label: 'Include in my month', type: 'toggle', desc: 'Adds these re-writes to the Budget and Lifetimes tabs.' },
+    's2.minutes': { label: 'Reading time', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's2.perDay': { label: 'Replies a day', unit: '', min: 0, max: 40, step: 1, slider: true },
+    's2.inc': { label: 'Include in my month', type: 'toggle', desc: 'Adds these re-writes to the Budget and Lifetimes tabs.' },
+    's3.minutes': { label: 'Test or build time', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's3.perDay': { label: 'Runs a day', unit: '', min: 0, max: 30, step: 1, slider: true },
+    's3.poll': { label: 'Fix: run it in the background', type: 'toggle', desc: 'The agent checks the job every few minutes. Each check is a tiny request that resets the cache timer.' },
+    's3.pollEvery': { label: 'Agent polls every', unit: 'min', min: 0.5, max: 10, step: 0.5, slider: true },
+    's3.inc': { label: 'Include in my month', type: 'toggle', desc: 'Adds these re-writes to the Budget and Lifetimes tabs.' },
+    's4.co': tok({ label: 'Orchestrator context' }),
+    's4.waves': { label: 'Waves', unit: '', min: 1, max: 10, step: 1, slider: true },
+    's4.subs': { label: 'Subagents per wave', unit: '', min: 1, max: 16, step: 1, slider: true },
+    's4.dur': { label: 'Subagent run time', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's4.cs': tok({ label: 'Subagent context' }),
+    's4.wait': { label: 'Each subagent waits for tests or a build', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's4.h': tok({ label: 'Handoff file', max: 300000, step: 5000 }),
+    's4.problems': { label: 'Times a subagent gets stuck', unit: '', min: 0, max: 10, step: 1, slider: true },
+    's4.problemMin': { label: 'Minutes you spend on each', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's4.runs': { label: 'Runs a day', unit: '', min: 0, max: 10, step: 1, slider: true },
+    's4.layout': { label: 'Layout in my month', type: 'select', options: [['hub', 'LLM hub-and-spoke'], ['sequential', 'Sequential single agent'], ['code', 'Orchestration in code']] },
+    's4.inc': { label: 'Include in my month', type: 'toggle', desc: 'Adds only the re-write part of your layout to the Budget tab.' },
+    's5.n': { label: 'Agents', unit: '', min: 1, max: 12, step: 1, slider: true },
+    's5.r': { label: 'Minutes with each', unit: 'min', min: 0.5, max: 30, step: 0.5, slider: true },
+    's5.ca': tok({ label: 'Context per agent' }),
+    's5.hours': { label: 'Hours of this a day', unit: 'h', min: 0, max: 10, step: 0.5, slider: true },
+    's5.inc': { label: 'Include in my month', type: 'toggle', desc: 'Adds these re-writes to the Budget and Lifetimes tabs.' },
+    's6.requests': { label: 'Model requests a day', unit: '', min: 0, max: 3000, step: 10, slider: true },
+    's6.avgPct': { label: 'Average context, % of the full size', unit: '%', min: 0, max: 100, step: 1, slider: true },
+    's6.newTok': { label: 'New input per request', unit: 'tokens', min: 0, max: 30000, step: 100, slider: true, tok: true,
+      allTabs: 'Also decides when the long-context price starts (context + new input above the threshold). It changes the numbers on every tab.' },
+    's6.outTok': { label: 'Output per request', unit: 'tokens', min: 0, max: 20000, step: 100, slider: true, tok: true },
+    'strip.heartbeat': { label: 'Agent polls every', unit: 'min', min: 0.5, max: 10, step: 0.5, slider: true }
+  };
+
+  var TABS = [
+    { id: 's1', short: 'Break', title: 'Break.', sub: 'You step away. Nothing touches the cache while you are gone.',
+      primary: ['s1.minutes', 's1.perDay'], fix: ['s1.poll', 's1.pollEvery'], more: [], inc: 's1.inc' },
+    { id: 's2', short: 'Reading', title: 'Reading the answer.', sub: 'You read the agent’s answer, then reply. Reading is free; the reply pays.',
+      primary: ['s2.minutes', 's2.perDay'], more: [], inc: 's2.inc' },
+    { id: 's3', short: 'Tool call', title: 'Long tool call.', sub: 'Tests or a build run. The agent sends nothing while it waits.',
+      primary: ['s3.minutes', 's3.perDay'], fix: ['s3.poll', 's3.pollEvery'], more: [], inc: 's3.inc' },
+    { id: 's4', short: 'Orchestrator', title: 'Orchestrator and subagents.', sub: 'Waves of parallel subagents. Who holds a big context while nothing happens?',
+      primary: ['s4.dur', 's4.wait', 's4.co'], more: ['s4.waves', 's4.subs', 's4.cs', 's4.h', 's4.problems', 's4.problemMin', 's4.runs', 's4.layout'], inc: 's4.inc' },
+    { id: 's5', short: 'Parallel agents', title: 'Parallel agents.', sub: 'You rotate between agents in worktrees. Each one waits for you.',
+      primary: ['s5.n', 's5.r'], more: ['s5.ca', 's5.hours'], inc: 's5.inc' },
+    { id: 's6', short: 'Budget', title: 'Monthly budget.', sub: 'Normal traffic on a warm cache, plus the re-writes of every tab you include.',
+      primary: ['g.budget', 's6.requests'], more: ['s6.avgPct', 's6.newTok', 's6.outTok', 'g.days'] },
+    { id: 'strip', short: 'Lifetimes', title: 'Cache lifetimes compared.', sub: 'Your included day under each cache lifetime, and with an agent that keeps the cache warm.',
+      primary: ['strip.heartbeat'], more: [] }
+  ];
+  var TAB_BY_ID = {}; TABS.forEach(function (t, i) { t.n = i + 1; TAB_BY_ID[t.id] = t; });
+
+  // Episode shot list: every calculator link in the episode script, in document order, identical consecutive hashes merged.
+  // notes: true = the link sits only in a "Notes and sources" box, not in an "On screen" block. PgDn / PgUp (what
+  // presentation clickers send) and . / , step through the on-camera shots and skip those; the list (from "Shots" or
+  // the indicator in recording mode) still opens any of them. A shot sets the whole state; recording mode and the
+  // edition stay as they are.
+  var SHOTS = [
+    { label: '1 Base setup · 6.1 Break 4/day', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0' },
+    { label: '6.1 Break 8/day (cut)', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s1.perDay=8&s2.minutes=6&s4.co=500000&s4.inc=0' },
+    { label: '6.1 Break 4/day', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0' },
+    { label: '6.2 Reading 6 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s2' },
+    { label: '6.2 Reading 4.5 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=4.5&s4.co=500000&s4.inc=0&ui.focus=s2' },
+    { label: '6.2 Reading 4 min (warm)', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=4&s4.co=500000&s4.inc=0&ui.focus=s2' },
+    { label: '6.3 Long tests 12 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s3' },
+    { label: '6.4 Orchestrator', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s4' },
+    { label: '6.5 Parallel 180K', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s5' },
+    { label: '6.5 Parallel 500K', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&s5.ca=500000&ui.focus=s5' },
+    { label: '7 Overlap 180K', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s6' },
+    { label: '7 Lifetimes strip', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=strip' },
+    { label: '7 Overlap 500K', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&s5.ca=500000&ui.focus=s6' },
+    { label: '8 Fix 1: tests 4 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s3.minutes=4&s4.co=500000&s4.inc=0&ui.focus=s3' },
+    { label: '8 Fix 2: polling', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s3.poll=1&s4.co=500000&s4.inc=0&ui.focus=s3' },
+    { label: '8 Fix 3: GPT-6.1 Sol', hash: 'g.profile=copilot-gpt&g.model=gpt-6-1-sol&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0' },
+    { label: '8 Fix 5: orchestrator bars', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s4' }
+  ];
+  var shotIdx = -1;   // the last shot applied or matched; -1 = none yet
+  var CAM_N = 0;      // on-camera shots; each one's number among them is SHOTS[i].cam (1..CAM_N), notes shots have none
+  SHOTS.forEach(function (s) { if (!s.notes) s.cam = ++CAM_N; });
+
+  // Same keys as index.html CARD_KEYS: decide "sample numbers" vs "your numbers" per tab
+  var CARD_KEYS = {
+    s1: ['s1.minutes', 's1.perDay', 's1.poll', 's1.pollEvery'], s2: ['s2.minutes', 's2.perDay'],
+    s3: ['s3.minutes', 's3.perDay', 's3.poll', 's3.pollEvery'],
+    s4: ['s4.co', 's4.waves', 's4.subs', 's4.dur', 's4.cs', 's4.wait', 's4.h', 's4.problems', 's4.problemMin', 's4.runs', 's4.layout'],
+    s5: ['s5.n', 's5.r', 's5.ca', 's5.hours'], s6: ['s6.requests', 's6.avgPct', 's6.newTok', 's6.outTok', 'g.budget', 'g.days'],
+    strip: ['strip.heartbeat']
+  };
+  var RATE_KEYS = ['r.ttlMain', 'r.ttlSub', 'r.input', 'r.output', 'r.read', 'r.writeMain', 'r.writeSub', 'r.write5m', 'r.write1h', 'r.usdPerCredit'];
+  var LC_KEYS = ['r.lcThreshold', 'r.lcInput', 'r.lcOutput', 'r.lcRead', 'r.lcWriteMain', 'r.lcWriteSub', 'r.lcWrite5m', 'r.lcWrite1h'];
+  var CTX_KEYS = ['g.useAbs', 'g.fillPct', 'g.absTokens', 'g.window', 'g.genMin', 'g.days', 'g.gptHit'];
+  var POLL_KEYS = ['g.pollOut', 'g.pollIn'];
+  var ASSUMPTION_MK = {
+    'g.pollOut': { kind: 'asm', text: 'assumption', src: 'pollOutputTokens' },
+    'g.pollIn': { kind: 'asm', text: 'assumption', src: 'pollNewInputTokens' },
+    'g.genMin': { kind: 'asm', text: 'assumption', src: 'generationMinutes' },
+    'g.gptHit': { kind: 'com', text: 'community-measured', src: 'gptHitPct' }
+  };
+
+  var st, R;
+  var ctl = [];          // every control: { key, number, range, check, select, hint, wrap }
+  var animateNext = false;
+
+  // ------------------------------------------------------------------ formatting (copied from index.html)
+  function fmtUsd(x) {
+    if (x === Infinity) return '∞';
+    if (!isFinite(x)) return '–';
+    var a = Math.abs(x);
+    var sign = x < -5e-5 ? '−' : '';
+    if (a >= 1000) return sign + '$' + Math.round(a).toLocaleString('en-US');
+    if (a >= 5e-5 && a < 0.01) return sign + '$' + a.toFixed(4);
+    if (a >= 5e-5 && a < 0.1) return sign + '$' + a.toFixed(3);
+    return sign + '$' + a.toFixed(2);
+  }
+  /** Parse what a person types: "400,000", "400 000", "400K", "1.5M", "3,5". */
+  function parseNum(str) {
+    var t = String(str).replace(/[\s_]/g, '');
+    var mult = 1;
+    var m = /^(.*?)([kKmM])$/.exec(t);
+    if (m) { t = m[1]; mult = /[kK]/.test(m[2]) ? 1e3 : 1e6; }
+    if (/^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t) && !/^-?0,/.test(t)) t = t.replace(/,/g, '');
+    else if ((t.match(/,/g) || []).length === 1 && t.indexOf('.') < 0) t = t.replace(',', '.');
+    if (!/^-?(\d+\.?\d*|\.\d+)$/.test(t)) return NaN;
+    return Math.round(parseFloat(t) * mult * 1e6) / 1e6;
+  }
+  function fmtCr(x) { return Math.round(x).toLocaleString('en-US'); }
+  function fmtTok(x) { return Math.round(x).toLocaleString('en-US'); }
+  function fmtK(x) {
+    if (x >= 1e6) return (Math.round(x / 1e4) / 100).toLocaleString('en-US') + 'M';
+    return x >= 1000 ? (Math.round(x / 100) / 10).toLocaleString('en-US') + 'K' : String(Math.round(x));
+  }
+  function fmtNum(x, d) { return (Math.round(x * Math.pow(10, d || 0)) / Math.pow(10, d || 0)).toLocaleString('en-US'); }
+  function p(x) { return '$' + (+x).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }); }
+  function pct(x) { return fmtNum(x * 100, 0) + '%'; }
+  function fmtDays(x) { return isFinite(x) ? fmtNum(x, 1) : '∞'; }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+
+  // ------------------------------------------------------------------ DOM helpers
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') e.className = attrs[k];
+      else if (k === 'text') e.textContent = attrs[k];
+      else if (k === 'html') e.innerHTML = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function $(id) { return document.getElementById(id); }
+  function setHTML(id, html) { var e = typeof id === 'string' ? $(id) : id; if (e && e.innerHTML !== html) e.innerHTML = html; }
+  function setText(id, t) { var e = typeof id === 'string' ? $(id) : id; if (e && e.textContent !== t) e.textContent = t; }
+
+  var uid = 0;
+  function rangeFill(range) {
+    var min = +range.min, max = +range.max, v = +range.value;
+    range.style.setProperty('--p', (max > min ? Math.max(0, Math.min(100, 100 * (v - min) / (max - min))) : 0) + '%');
+  }
+
+  /** One control for a state key. `compact` = drawer row (label left, value right, no slider). */
+  function buildField(key, compact) {
+    var spec = F[key];
+    var c = { key: key, spec: spec };
+    var id = 'f' + (++uid);
+    var wrap;
+    // Badges sit beside the <label>, not inside it, so they do not become part of the input's accessible name.
+    c.mk = el('span', { class: 'mk' });
+    if (spec.type === 'toggle') {
+      c.check = el('input', { type: 'checkbox', role: 'switch', id: id });
+      if (spec.desc) c.check.setAttribute('aria-describedby', id + '-d');
+      c.check.addEventListener('change', function () { st[key] = c.check.checked; changed(key); });
+      wrap = el('div', { class: 'sw' }, [c.check, el('span', { class: 'swt' }, [el('label', { for: id, text: spec.label }), spec.desc ? el('span', { class: 'swd', id: id + '-d', text: spec.desc }) : null])]);
+      if (compact) wrap = el('div', { class: 'row' }, [wrap]);
+    } else if (spec.type === 'select') {
+      c.select = el('select', { id: id });
+      spec.options.forEach(function (o) { c.select.appendChild(el('option', { value: o[0], text: o[1] })); });
+      c.select.addEventListener('change', function () { st[key] = c.select.value; changed(key); });
+      wrap = el('div', { class: 'fld' }, [el('div', { class: 'ft' }, [el('span', { class: 'lb' }, [el('label', { for: id, text: spec.label })])]), el('span', { class: 'selw', style: 'display:block;margin-top:8px' }, [c.select])]);
+      c.select.style.width = '100%';
+    } else {
+      c.number = el('input', { type: 'text', inputmode: 'decimal', class: 'num' + (spec.tok ? ' tok' : ''), autocomplete: 'off', id: id });
+      c.number.addEventListener('input', function () {
+        if (c.number.value === '') return;
+        var v = parseNum(c.number.value);
+        if (!isFinite(v)) return;
+        // Below the field minimum (e.g. the "0" typed on the way to "0.5" min) never reaches the model.
+        if (spec.min > 0 && v < spec.min) return;
+        st[key] = v;
+        if (c.range) { c.range.value = v; rangeFill(c.range); valText(c, v); }
+        if (c.hint) c.hint.textContent = '= ' + fmtK(v);
+        changed(key);
+      });
+      c.number.addEventListener('blur', function () { showNumber(c); });
+      if (spec.tok) c.hint = el('span', { class: 'hint' });
+      var lab = el('span', { class: 'lb' }, [el('label', { for: id, text: spec.label }), c.mk]);
+      if (spec.allTabs) lab.appendChild(el('span', { class: 'mk', 'data-tip': spec.allTabs, tabindex: '0', html: 'all tabs<span class="sr">: ' + esc(spec.allTabs) + '</span>' }));
+      // Always render the unit, even empty, so every number box in a column shares one right edge.
+      var unit = el('span', { class: 'unit', text: spec.unit || '' });
+      if (compact) {
+        wrap = el('div', { class: 'row' }, [lab, c.number, unit]);
+        if (c.hint) { c.hint = null; }
+      } else {
+        var top = el('div', { class: 'ft' }, [lab, c.hint, c.number, unit]);
+        var kids = [top];
+        if (spec.slider) {
+          c.range = el('input', { type: 'range', min: spec.min, max: spec.max, step: spec.step, 'aria-label': spec.label });
+          c.range.addEventListener('input', function () {
+            var v = parseFloat(c.range.value);
+            st[key] = v; showNumber(c); rangeFill(c.range); valText(c, v);
+            if (c.hint) c.hint.textContent = '= ' + fmtK(v);
+            changed(key);
+          });
+          kids.push(c.range);
+        }
+        wrap = el('div', { class: 'fld' }, kids);
+      }
+    }
+    c.wrap = wrap;
+    ctl.push(c);
+    return wrap;
+  }
+  /** Token fields read "400,000" when not being typed in; parseNum accepts the commas back. */
+  function showNumber(c) {
+    if (document.activeElement === c.number) return;
+    var v = st[c.key];
+    c.number.value = v == null || v === '' ? '' : (c.spec.tok ? fmtTok(+v) : v);
+  }
+  function valText(c, v) { c.range.setAttribute('aria-valuetext', (c.spec.tok ? fmtTok(+v) : v) + (c.spec.unit ? ' ' + c.spec.unit : '')); }
+  function controlsOf(key) { return ctl.filter(function (c) { return c.key === key; }); }
+
+  function syncInputs() {
+    ctl.forEach(function (c) {
+      var v = st[c.key];
+      if (c.check) c.check.checked = !!v;
+      else if (c.select) c.select.value = v;
+      else if (c.number) {
+        showNumber(c);
+        if (c.range) { c.range.value = v == null ? 0 : v; rangeFill(c.range); valText(c, v == null ? 0 : v); }
+        if (c.hint) c.hint.textContent = v == null || v === '' ? '' : '= ' + fmtK(+v);
+      }
+    });
+    fillModelSelect();
+    $('selProfile').value = st['g.profile'];
+    $('selModel').value = st['g.model'];
+  }
+
+  function fillModelSelect() {
+    var sel = $('selModel');
+    var allowed = M.allowedModels(st['g.profile']);
+    var want = allowed.map(function (m) { return m.id; }).join(',');
+    if (sel.dataset.list !== want) {
+      sel.innerHTML = '';
+      allowed.forEach(function (m) { sel.appendChild(el('option', { value: m.id, text: m.label })); });
+      sel.dataset.list = want;
+    }
+  }
+
+  // Copied from index.html onSelect(): a tool or model change re-presets every rate field, keeps a typed context window.
+  function onSelect(key, value) {
+    var profile = key === 'g.profile' ? value : st['g.profile'];
+    var model = key === 'g.model' ? value : st['g.model'];
+    if (!M.allowedModels(profile).some(function (m) { return m.id === model; })) model = M.defaultModelFor(profile);
+    var oldPreset = M.presetFields(st['g.profile'], st['g.model']);
+    var keepWindow = st['g.window'] !== oldPreset['g.window'] ? st['g.window'] : null;
+    var pf = M.presetFields(profile, model);
+    st['g.profile'] = profile; st['g.model'] = model;
+    Object.keys(pf).forEach(function (k) { st[k] = pf[k]; });
+    if (keepWindow != null) st['g.window'] = keepWindow;
+    syncInputs();
+    changed(key);
+  }
+
+  // ------------------------------------------------------------------ build
+  var P = {}; // per-tab element refs
+
+  function buildPanel(t) {
+    var panel = el('section', { class: 'tabpanel', id: 'panel-' + t.id, role: 'tabpanel', 'aria-labelledby': 'tab-' + t.id });
+    var ph = el('span', { class: 'mk', id: t.id + '-ph' });
+    panel.appendChild(el('div', { class: 'phead' }, [el('h2', { text: t.title }), el('span', { class: 'psub', text: t.sub }), el('div', { class: 'reccap', id: t.id + '-rec' }), ph]));
+
+    var inp = el('div', { class: 'card inp' }, [el('div', { class: 'k', text: 'Your inputs' })]);
+    t.primary.forEach(function (k) { inp.appendChild(buildField(k)); });
+    if (t.fix) {
+      var fb = el('div', { class: 'fixbox' });
+      t.fix.forEach(function (k) { fb.appendChild(buildField(k)); });
+      inp.appendChild(fb);
+    }
+    if (t.extra) t.extra.forEach(function (k) { inp.appendChild(buildField(k)); });
+    if (t.more && t.more.length) {
+      var d = el('details', { class: 'more' }, [el('summary', { text: 'More inputs (' + t.more.length + ')' })]);
+      t.more.forEach(function (k) { d.appendChild(buildField(k)); });
+      inp.appendChild(d);
+    }
+    if (t.id === 's4') inp.appendChild(el('div', { class: 'note', text: 'Tip: click a bar to count that layout in your month (also under More inputs).' }));
+    if (t.inc) { var ic = el('div', { class: 'inc' }, [buildField(t.inc)]); inp.appendChild(ic); }
+
+    var res = el('div', { class: 'card res', id: t.id + '-res' });
+    panel.appendChild(el('div', { class: 'pgrid' }, [inp, res]));
+    return panel;
+  }
+
+  // Result card skeletons
+  function heroBlock(id) {
+    return '<div class="hrow"><div><div class="hlab"><span class="k" id="' + id + '-hl"></span><span class="mk api" data-api></span></div>' +
+      '<div class="hval tnum" id="' + id + '-hv" data-p="' + id + '.hero"></div><div class="hsub" id="' + id + '-hs"></div></div>' +
+      '<div class="kpis" id="' + id + '-kpis"></div></div>' +
+      '<p class="story" id="' + id + '-story"></p>';
+  }
+  function mathsBlock(id) {
+    return '<details class="maths"><summary>Show the maths</summary><div class="well" id="' + id + '-fx"></div></details>';
+  }
+
+  function build() {
+    M.PROFILES.forEach(function (pr) { $('selProfile').appendChild(el('option', { value: pr.id, text: pr.short })); });
+    $('selProfile').addEventListener('change', function () { onSelect('g.profile', this.value); });
+    $('selModel').addEventListener('change', function () { onSelect('g.model', this.value); });
+
+    // Header context field: typing a size switches to "context in tokens" (g.useAbs) and sets g.absTokens.
+    var ci = $('ctxIn');
+    ci.addEventListener('input', function () {
+      if (ci.value === '') return;
+      var v = parseNum(ci.value);
+      if (!isFinite(v)) return;
+      st['g.useAbs'] = true; st['g.absTokens'] = v;
+      syncInputs();
+      changed('g.absTokens');
+    });
+    ci.addEventListener('blur', function () { renderHeader(); });
+
+    CTX_KEYS.forEach(function (k) { $('dg-ctx').appendChild(buildField(k, k !== 'g.fillPct' && k !== 'g.absTokens' && k !== 'g.useAbs')); });
+    RATE_KEYS.forEach(function (k) { $('dg-rates').appendChild(buildField(k, true)); });
+    LC_KEYS.forEach(function (k) { $('dg-lc').appendChild(buildField(k, true)); });
+    POLL_KEYS.forEach(function (k) { $('dg-poll').appendChild(buildField(k, true)); });
+
+    var rail = $('rail'), panels = $('panels');
+    TABS.forEach(function (t) {
+      var b = el('button', { class: 'tab', role: 'tab', type: 'button', id: 'tab-' + t.id, 'aria-controls': 'panel-' + t.id, 'data-scn': t.id },
+        [el('span', { class: 'ti', 'aria-hidden': 'true', text: (t.n < 10 ? '0' : '') + t.n }), el('span', { class: 'tn', text: t.short }), el('span', { class: 'tf', id: t.id + '-tf' })]);
+      b.setAttribute('aria-keyshortcuts', String(t.n));
+      b.addEventListener('click', function () { focusTab(t.id); });
+      rail.appendChild(b);
+      panels.appendChild(buildPanel(t));
+      // Recording mode: the same tab as a slim button on the brand line (plain buttons, not a second tablist)
+      var rb = el('button', { class: 'rt', type: 'button', id: 'rt-' + t.id, 'aria-controls': 'panel-' + t.id },
+        [el('span', { class: 'ti', 'aria-hidden': 'true', text: (t.n < 10 ? '0' : '') + t.n }), el('span', { text: t.short })]);
+      rb.setAttribute('aria-keyshortcuts', String(t.n));
+      rb.addEventListener('click', function () { focusTab(t.id); });
+      $('recRail').appendChild(rb);
+    });
+    SHOTS.forEach(function (s, i) {
+      var lab = el('span', { text: s.label });
+      if (s.notes) lab.appendChild(el('span', { class: 'ntag', text: 'Notes' }));
+      var b = el('button', { class: 'shot' + (s.notes ? ' nt' : ''), type: 'button', 'data-i': String(i) },
+        [el('span', { class: 'sn', 'aria-hidden': 'true', text: s.notes ? '–' : (s.cam < 10 ? '0' : '') + s.cam }), lab]);
+      if (s.notes) b.setAttribute('aria-label', s.label + ', notes only, skipped by PgDn');
+      b.addEventListener('click', function () { goShot(i); closeShots(); });
+      var li = document.createElement('li'); li.appendChild(b); $('shotList').appendChild(li);
+    });
+    $('btnShots').addEventListener('click', function () { toggleShots($('btnShots')); });
+    $('shotInd').addEventListener('click', function () { toggleShots($('shotInd')); });
+    $('shotPop').addEventListener('keydown', function (e) {
+      var items = [].slice.call(document.querySelectorAll('#shotList .shot'));
+      var i = items.indexOf(document.activeElement), n = null;
+      if (e.key === 'ArrowDown') n = Math.min(items.length - 1, i + 1);
+      else if (e.key === 'ArrowUp') n = Math.max(0, i - 1);
+      else if (e.key === 'Home') n = 0;
+      else if (e.key === 'End') n = items.length - 1;
+      else if (e.key === 'Tab') { // keep focus inside the open list
+        n = e.shiftKey ? (i <= 0 ? items.length - 1 : i - 1) : (i + 1) % items.length;
+      }
+      if (n == null) return;
+      e.preventDefault();
+      items[n].focus();
+    });
+    document.addEventListener('mousedown', function (e) {
+      if ($('shotPop').hidden) return;
+      if (e.target.closest && e.target.closest('#shotPop, #btnShots, #shotInd')) return;
+      closeShots();
+    });
+    // Recording mode: a mouse click must not leave focus on the button it clicked (a rail tab, a layout bar), or the next
+    // clicker key or arrow draws the focus ring on camera. e.detail is 0 for keyboard activation, which keeps focus.
+    document.addEventListener('click', function (e) {
+      if (!st['ui.rec'] || !e.detail) return;
+      var f = document.activeElement;
+      if (f && f.tagName === 'BUTTON' && !f.closest('#shotPop') && f.contains(e.target)) f.blur();
+    });
+    rail.addEventListener('keydown', function (e) {
+      var i = TABS.findIndex(function (t) { return t.id === st['ui.focus']; });
+      var n = null;
+      if (e.key === 'ArrowRight') n = (i + 1) % TABS.length;
+      else if (e.key === 'ArrowLeft') n = (i - 1 + TABS.length) % TABS.length;
+      else if (e.key === 'Home') n = 0;
+      else if (e.key === 'End') n = TABS.length - 1;
+      if (n == null) return;
+      e.preventDefault();
+      focusTab(TABS[n].id);
+      $('tab-' + TABS[n].id).focus();
+    });
+
+    // Result skeletons
+    ['s1', 's2', 's3'].forEach(function (id) {
+      setHTML(id + '-res', heroBlock(id) + '<div class="vis" id="' + id + '-tl"></div><div class="vis bars" id="' + id + '-bars"></div><div class="foot2" id="' + id + '-note"></div>' + mathsBlock(id));
+    });
+    setHTML('s4-res', heroBlock('s4') + '<div class="vis"><div class="bars" id="s4-bars"></div><div class="legend" id="s4-legend"></div></div><div class="foot2" id="s4-note"></div>' + mathsBlock('s4'));
+    setHTML('s5-res', heroBlock('s5') + '<div class="vis"><div class="dots" id="s5-dots"></div><div class="legend" id="s5-legend"></div></div>' + mathsBlock('s5'));
+    setHTML('s6-res', '<div class="hlab"><span class="k" id="s6-hl"></span><span class="mk api" data-api></span></div>' +
+      '<div class="tiles" id="s6-tiles"></div>' +
+      '<div class="share"><div class="sv lost tnum" id="s6-share" data-p="s6.share"></div><div><div style="font-weight:500;font-size:19px;margin-bottom:10px">of what you spend is cache re-writes</div><div class="stack" id="s6-stack"></div><div class="legend" id="s6-legend"></div></div></div>' +
+      '<p class="story" id="s6-story"></p><div class="foot2 hideRec">Not counted: credits included in your plan (Copilot Pro 1,500 / Pro+ 7,000 / Max 20,000 a month), Cursor fast mode (2x every price), Cursor regional or US-only endpoints (+10%), and usage over the Claude subscription’s 5-hour limit.</div>' + mathsBlock('s6'));
+    setHTML('strip-res', '<div class="hlab"><span class="k">Extra cost per month, by cache lifetime</span><span class="mk api" data-api></span></div>' +
+      '<div class="tiles" id="strip-tiles"></div><p class="story" id="strip-story"></p><div class="foot2" id="strip-note"></div>' + mathsBlock('strip'));
+
+    // Click a layout bar to count it in my month
+    $('s4-bars').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-layout]');
+      if (!b) return;
+      st['s4.layout'] = b.getAttribute('data-layout'); syncInputs(); changed('s4.layout');
+    });
+
+    // Buttons and keys
+    $('btnMore').addEventListener('click', function () { toggleDrawer(); });
+    $('ttlChip').addEventListener('click', function () { toggleDrawer(true); });
+    $('btnRec').addEventListener('click', function () { toggleRec(!st['ui.rec']); });
+    $('btnExit').addEventListener('click', function () { toggleRec(false); });
+    $('btnEd').addEventListener('click', toggleEdition);
+    $('btnReset').addEventListener('click', function () { var f = st['ui.focus']; st = M.defaultState(); st['ui.focus'] = f; syncInputs(); changed('reset'); });
+    document.addEventListener('keydown', function (e) {
+      var tg = e.target, t = tg && tg.tagName;
+      // Only typing fields swallow keys; sliders, checkboxes and buttons let the shortcuts through. Esc always works.
+      if ((t === 'INPUT' && tg.type === 'text') || t === 'SELECT' || t === 'TEXTAREA' || (tg && tg.isContentEditable)) {
+        if (e.key !== 'Escape') return;
+        tg.blur();
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      var k = e.key;
+      var popOpen = !$('shotPop').hidden;
+      if (k === 'Escape') {
+        if (popOpen) closeShots();
+        else if (st['ui.rec']) toggleRec(false); // More settings is never visible in recording mode, so Esc never goes to it there
+        else if (!$('drawer').hidden) toggleDrawer(false);
+        return;
+      }
+      var isTabKey = k === 'ArrowRight' || k === 'ArrowLeft';
+      var isShotKey = k === 'PageDown' || k === 'PageUp' || k === '.' || k === ',';
+      // Recording mode: anything a mouse click left focused (a note badge, say) would get a focus ring from this key.
+      if (st['ui.rec'] && !popOpen && t !== 'INPUT' && tg !== document.body && tg.blur && (isTabKey || isShotKey || /^[rgRG1-7]$/.test(k))) tg.blur();
+      if (isTabKey || isShotKey) {
+        // Sliders and checkboxes own their arrow and page keys; the focused tablist already moved (it calls preventDefault);
+        // the open shot list moves its own focus. None of them may step a second time.
+        if (t === 'INPUT' || e.defaultPrevented || popOpen) return;
+        e.preventDefault();
+        if (isTabKey) stepTab(k === 'ArrowRight' ? 1 : -1);
+        else stepShot(k === 'PageDown' || k === '.' ? 1 : -1);
+        return;
+      }
+      if (k === 'r' || k === 'R') toggleRec(!st['ui.rec']);
+      else if (k === 'g' || k === 'G') toggleEdition();
+      else if (/^[1-7]$/.test(k)) focusTab(TABS[+k - 1].id);
+    });
+    window.addEventListener('hashchange', function () {
+      if (location.hash.replace(/^#/, '') === M.encodeState(st)) return;
+      st = M.decodeState(location.hash); syncInputs(); render();
+    });
+
+    // Tooltip: shows on hover or keyboard focus, stays while the pointer is on it, Esc dismisses it (WCAG 1.4.13).
+    // Every badge also carries the same text in a screen-reader-only span, so nothing depends on the timing.
+    var tip = $('tip');
+    function showTip(e) {
+      var t = e.target.closest && e.target.closest('[data-tip]');
+      if (!t) return;
+      clearTimeout(tip._h);
+      tip.textContent = t.getAttribute('data-tip');
+      tip.classList.add('on');
+      var r = t.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+      var x = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
+      // Above the badge first, so the tip does not cover the field it describes.
+      var y = r.top - h - 8; if (y < 8) y = r.bottom + 8;
+      tip.style.left = x + 'px'; tip.style.top = y + 'px';
+    }
+    function hideTip(e) {
+      var t = e.target.closest && e.target.closest('[data-tip]');
+      if (!t) return;
+      clearTimeout(tip._h);
+      tip._h = setTimeout(function () { tip.classList.remove('on'); }, 150);
+    }
+    tip.addEventListener('mouseenter', function () { clearTimeout(tip._h); });
+    tip.addEventListener('mouseleave', function () { tip.classList.remove('on'); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && tip.classList.contains('on')) { clearTimeout(tip._h); tip.classList.remove('on'); e.stopPropagation(); }
+    }, true);
+    document.addEventListener('mouseover', showTip); document.addEventListener('focusin', showTip);
+    document.addEventListener('mouseout', hideTip); document.addEventListener('focusout', hideTip);
+  }
+
+  function focusTab(id) {
+    if (st['ui.focus'] === id) return;
+    st['ui.focus'] = id; animateNext = true;
+    var pn = $('panel-' + id);
+    pn.classList.remove('anim'); void pn.offsetWidth; pn.classList.add('anim');
+    var rail = $('rail'), tb = $('tab-' + id);
+    if (rail.scrollWidth > rail.clientWidth) rail.scrollLeft = Math.max(0, tb.offsetLeft - rail.clientWidth / 2 + tb.offsetWidth / 2);
+    changed('ui.focus');
+  }
+  function stepTab(d) {
+    var i = TABS.findIndex(function (t) { return t.id === st['ui.focus']; });
+    focusTab(TABS[(i + d + TABS.length) % TABS.length].id);
+  }
+
+  // ------------------------------------------------------------------ episode shots
+  var SHOT_KEYS = null;
+  /** The state a shot sets, as a canonical hash with recording mode off, so it compares with any current state. */
+  function shotKey(state) { var s = Object.assign({}, state); s['ui.rec'] = false; return M.encodeState(s); }
+  function shotKeys() { return SHOT_KEYS || (SHOT_KEYS = SHOTS.map(function (s) { return shotKey(M.decodeState(s.hash)); })); }
+  /** Keep the last shot while the state still equals it (the base setup appears twice); otherwise the first on-camera shot
+   *  that equals it, and only then a notes shot. */
+  function matchShot() {
+    var cur = shotKey(st), keys = shotKeys();
+    if (shotIdx >= 0 && keys[shotIdx] === cur) return;
+    var i = keys.findIndex(function (k, j) { return k === cur && !SHOTS[j].notes; });
+    if (i < 0) i = keys.indexOf(cur);
+    if (i >= 0) shotIdx = i;
+  }
+  /** Clicker step: the next (d = 1) or previous (d = -1) on-camera shot. Notes shots are skipped; the ends do not wrap. */
+  function stepShot(d) {
+    var i = shotIdx;
+    do { i += d; } while (i >= 0 && i < SHOTS.length && SHOTS[i].notes);
+    goShot(i);
+    peekShot(); // also at either end, so the indicator says where you are
+  }
+  var peekT = 0;
+  /** In recording mode the indicator is invisible; show it for 2.5 s after a step. */
+  function peekShot() {
+    var d = $('recDock');
+    d.classList.add('peek');
+    clearTimeout(peekT);
+    peekT = setTimeout(function () { d.classList.remove('peek'); }, 2500);
+  }
+  function goShot(i) {
+    if (i < 0 || i >= SHOTS.length) return; // a clicker at either end stays put instead of wrapping to the other end
+    var rec = !!st['ui.rec'], prevFocus = st['ui.focus'];
+    st = M.decodeState(SHOTS[i].hash);
+    st['ui.rec'] = rec;
+    shotIdx = i;
+    if (st['ui.focus'] !== prevFocus) {
+      animateNext = true;
+      var pn = $('panel-' + st['ui.focus']);
+      pn.classList.remove('anim'); void pn.offsetWidth; pn.classList.add('anim');
+    }
+    syncInputs();
+    changed('shot');
+    peekShot();
+    setText('live', (SHOTS[i].notes ? 'Notes shot' : 'Shot ' + SHOTS[i].cam + ' of ' + CAM_N) + ', ' + SHOTS[i].label + '. ' + $('live').textContent);
+  }
+  function renderShots() {
+    matchShot();
+    var on = shotIdx >= 0, exact = on && shotKeys()[shotIdx] === shotKey(st), sh = on && SHOTS[shotIdx];
+    var txt = on ? (sh.notes ? 'Notes' : 'Shot <span class="tnum">' + sh.cam + '/' + CAM_N + '</span>') + ' · ' + esc(sh.label) + (exact ? '' : ' · edited')
+      : 'Shot <span class="tnum">–/' + CAM_N + '</span> · PgDn for the first';
+    setHTML('shotInd', txt);
+    $('shotInd').setAttribute('aria-label', 'Episode shots: ' + (on ? (sh.notes ? 'notes shot' : 'shot ' + sh.cam + ' of ' + CAM_N) + ', ' + sh.label + (exact ? '' : ', edited') : 'none yet') + '. Open the list');
+    document.querySelectorAll('#shotList .shot').forEach(function (b, i) {
+      if (i === shotIdx) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+    });
+  }
+  var shotOpener = null;
+  function toggleShots(opener) { if ($('shotPop').hidden) openShots(opener); else closeShots(); }
+  function openShots(opener) {
+    var p = $('shotPop');
+    shotOpener = opener;
+    p.hidden = false;
+    var r = opener.getBoundingClientRect();
+    p.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+    if (st['ui.rec']) { p.style.top = 'auto'; p.style.bottom = (window.innerHeight - r.top + 8) + 'px'; p.style.maxHeight = (r.top - 21) + 'px'; }
+    else { p.style.bottom = 'auto'; p.style.top = (r.bottom + 8) + 'px'; p.style.maxHeight = (window.innerHeight - r.bottom - 21) + 'px'; }
+    opener.setAttribute('aria-expanded', 'true');
+    var items = document.querySelectorAll('#shotList .shot');
+    var cur = items[Math.max(0, shotIdx)];
+    cur.focus();
+    cur.scrollIntoView({ block: 'nearest' });
+  }
+  function closeShots() {
+    var p = $('shotPop');
+    if (p.hidden) return;
+    p.hidden = true;
+    $('btnShots').setAttribute('aria-expanded', 'false');
+    $('shotInd').setAttribute('aria-expanded', 'false');
+    // Back to the opener outside recording mode; on camera no focus ring is left behind.
+    if (st['ui.rec']) { if (document.activeElement) document.activeElement.blur(); }
+    else if (shotOpener && shotOpener.offsetParent) shotOpener.focus();
+    shotOpener = null;
+  }
+
+  function toggleRec(on) {
+    closeShots();
+    if (on) toggleDrawer(false); // recording mode hides More settings; left open, it would swallow the first Esc
+    st['ui.rec'] = on; changed('ui.rec');
+    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+    if (on) { window.scrollTo(0, 0); peekShot(); }
+  }
+  function toggleDrawer(force) {
+    var d = $('drawer'), open = force != null ? force : d.hidden;
+    d.hidden = !open;
+    $('btnMore').setAttribute('aria-expanded', open ? 'true' : 'false');
+    $('ttlChip').setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open && force) d.scrollIntoView({ block: 'nearest' });
+  }
+  function toggleEdition() {
+    var root = document.documentElement;
+    var next = root.getAttribute('data-edition') === 'graphite' ? 'white' : 'graphite';
+    root.setAttribute('data-edition', next);
+    try { localStorage.setItem('gd-edition', next); } catch (e) { /* ignore */ }
+    renderEditionBtn();
+  }
+  function renderEditionBtn() {
+    var g = document.documentElement.getAttribute('data-edition') === 'graphite';
+    $('btnEd').innerHTML = (g ? 'White' : 'Graphite') + ' <kbd aria-hidden="true">G</kbd>';
+    $('btnEd').setAttribute('aria-label', 'Switch to the ' + (g ? 'White' : 'Graphite') + ' edition');
+  }
+
+  function changed(key) {
+    // A key with two controls (g.days: More settings and the Budget tab) must show one value in both.
+    if (key && controlsOf(key).length > 1) syncInputs();
+    try { history.replaceState(null, '', '#' + M.encodeState(st)); } catch (e) { /* file:// in some browsers */ }
+    render();
+  }
+
+  // ------------------------------------------------------------------ render helpers
+  function cls(x) { return x <= 1e-12 ? 'saved' : 'lost'; }
+  function crTxt(x) {
+    if (R.subscription || !R.rates.usdPerCredit) return '';
+    return fmtCr(x / R.rates.usdPerCredit) + ' credits';
+  }
+  function mk(span, m) {
+    if (!span) return;
+    if (!m) { span.className = 'mk'; span.textContent = ''; span.removeAttribute('data-tip'); span.removeAttribute('tabindex'); return; }
+    span.className = 'mk ' + m.kind;
+    span.innerHTML = esc(m.text) + (m.tip ? '<span class="sr">: ' + esc(m.tip) + '</span>' : '');
+    if (m.tip) { span.setAttribute('data-tip', m.tip); span.setAttribute('tabindex', '0'); } else { span.removeAttribute('data-tip'); span.removeAttribute('tabindex'); }
+  }
+  /** Research fact IDs (F48, E1, K3) mean nothing to a viewer: visible text drops them, tooltips list them at the end. */
+  function noIds(t) { return String(t).replace(/\s*\([^()]*(?:\b[FEK]\d+\b|facts\.md)[^()]*\)/g, '').replace(/\s+([.,;:])/g, '$1'); }
+  function idsOf(t) { var seen = {}; return (String(t).match(/\b[FEK]\d+\b/g) || []).filter(function (x) { return seen[x] ? false : (seen[x] = true); }); }
+  function withSources(text, facts) {
+    var ids = idsOf(text + ' ' + (facts || []).join(' '));
+    return noIds(text) + (ids.length ? ' Sources: ' + ids.join(', ') + '.' : '');
+  }
+  /** "a" or "an" before a token count as it is read aloud: an 80K, an 18K, a 180K. */
+  function aAn(t) { return /^(8|1[18](?![\d,]))/.test(t) ? 'an' : 'a'; }
+  /** Non-breaking hyphen, so "5-minute" never breaks at the hyphen on camera. */
+  function nbh(t) { return String(t).replace(/(\d)-(min|minute|hour)/g, '$1\u2011$2'); }
+  function plural(n, one, many) { return n + ' ' + (+n === 1 ? one : many); }
+  function apiTip() { return 'Subscription: there is no per-token bill. Dollars here are what the same traffic would cost at API prices. Marginal cost is $0 inside the 5-hour limit, but misses use the limit up faster.'; }
+
+  /** Set a number, with an eased count-up only right after a tab switch. The final text is always the exact value. */
+  function setNum(node, value, fmt, animate) {
+    var text = fmt(value);
+    if (node._raf) { cancelAnimationFrame(node._raf); node._raf = null; }
+    if (!animate || reduceMotion || !isFinite(value) || Math.abs(value) < 1e-9) { setHTML(node, text); return; }
+    var t0 = null;
+    function step(ts) {
+      if (t0 == null) t0 = ts;
+      var k = Math.min(1, (ts - t0) / 1360), e = 1 - Math.pow(1 - k, 4);
+      node.innerHTML = k < 1 ? fmt(value * e) : text;
+      node._raf = k < 1 ? requestAnimationFrame(step) : null;
+    }
+    node._raf = requestAnimationFrame(step);
+  }
+  function kpi(label, valueHtml, cap, colour, pkey) {
+    return '<div class="kpi"><div class="k">' + label + '</div><div class="kv tnum ' + (colour || '') + '"' + (pkey ? ' data-p="' + pkey + '"' : '') + '>' + valueHtml + '</div><div class="kc">' + (cap || '') + '</div></div>';
+  }
+  function genPhrase(id, minutes, gap, verb) {
+    var g = R.rates.genMin;
+    var plus = id === 's3' ? ' min while the agent writes its next step' : ' min while the agent writes its answer';
+    if (g > 0) return verb + ' <b>' + fmtNum(minutes, 2) + ' min</b>, plus ' + fmtNum(g, 2) + plus + ': <b>' + fmtNum(gap, 2) + ' min</b> without a request.';
+    return verb + ' <b>' + fmtNum(minutes, 2) + ' min</b> without a request.';
+  }
+
+  // ------------------------------------------------------------------ render
+  // Red notice when the picked tool + model stops working on a known date (Cursor + GPT: model.js shutoffNotice).
+  // Shown once on entering such a pair, from a selection, a shared link or a shot; OK closes it.
+  var shutoffShown = false;
+  function shutoffCheck() {
+    var msg = M.shutoffNotice(st['g.profile'], st['g.model']);
+    var pop = document.getElementById('shutoffPop');
+    if (!msg) { shutoffShown = false; if (pop) pop.hidden = true; return; }
+    if (shutoffShown) return;
+    shutoffShown = true;
+    if (!pop) {
+      pop = document.createElement('div');
+      pop.id = 'shutoffPop'; pop.setAttribute('role', 'alertdialog'); pop.setAttribute('aria-labelledby', 'shutoffMsg');
+      pop.innerHTML = '<p id="shutoffMsg"></p><button type="button">OK</button>';
+      pop.querySelector('button').addEventListener('click', function () { pop.hidden = true; });
+      document.body.appendChild(pop);
+    }
+    pop.querySelector('p').textContent = msg;
+    pop.hidden = false;
+    pop.querySelector('button').focus({ preventScroll: true });
+  }
+
+  function render() {
+    shutoffCheck();
+    R = M.computeAll(st);
+    var gpt = R.rates.provider === 'openai';
+    var anim = animateNext; animateNext = false;
+    document.body.classList.toggle('rec', !!st['ui.rec']);
+    $('btnRec').setAttribute('aria-pressed', st['ui.rec'] ? 'true' : 'false');
+    document.body.classList.toggle('gpt', gpt);
+
+    // Visibility rules (same as index.html)
+    function show(key, on) { controlsOf(key).forEach(function (c) { c.wrap.style.display = on ? '' : 'none'; }); }
+    show('g.fillPct', !st['g.useAbs']);
+    show('g.absTokens', !!st['g.useAbs']);
+    $('dg-lc-wrap').style.display = st['r.lcThreshold'] != null && st['r.lcThreshold'] !== '' ? '' : 'none';
+    show('r.usdPerCredit', R.profile && R.profile.billing === 'ai_credits');
+    show('g.gptHit', gpt);
+    ['r.write5m', 'r.write1h', 'r.lcWrite5m', 'r.lcWrite1h'].forEach(function (k) { show(k, !gpt); });
+    show('s1.pollEvery', !!st['s1.poll']);
+    show('s3.pollEvery', !!st['s3.poll']);
+
+    // Quiet markers on preset fields: your value > fieldStatus > assumption
+    var preset = M.presetFields(st['g.profile'], st['g.model']);
+    var fs = M.fieldStatus(st['g.profile'], st['g.model']);
+    RATE_KEYS.concat(LC_KEYS, ['g.window', 'g.genMin', 'g.gptHit', 'g.pollOut', 'g.pollIn']).forEach(function (k) {
+      controlsOf(k).forEach(function (c) {
+        var ab = ASSUMPTION_MK[k];
+        var mine = k in preset ? st[k] !== preset[k] : (k in M.USAGE_DEFAULTS && st[k] !== M.USAGE_DEFAULTS[k]);
+        if (mine) mk(c.mk, { kind: 'mine', text: 'yours', tip: 'Your value. Preset: ' + (k in preset ? preset[k] : M.USAGE_DEFAULTS[k]) });
+        else if (fs[k]) mk(c.mk, { kind: fs[k].status === 'source' ? 'src' : 'unv', text: fs[k].status === 'source' ? 'source' : 'unverified', tip: withSources(fs[k].badge.replace(/ - edit me$/, '') + '. ' + fs[k].note, fs[k].facts) });
+        else if (ab) mk(c.mk, { kind: ab.kind, text: ab.text, tip: M.ASSUMPTIONS[ab.src].source });
+        else mk(c.mk, null);
+      });
+    });
+    // Per tab: sample numbers vs your numbers
+    TABS.forEach(function (t) {
+      var own = CARD_KEYS[t.id].some(function (k) { return st[k] !== M.USAGE_DEFAULTS[k]; });
+      mk($(t.id + '-ph'), own ? { kind: 'mine', text: 'your numbers' } : { kind: '', text: 'sample numbers', tip: 'These inputs are examples for a heavy agent user. Set your own.' });
+    });
+    // API-equivalent markers
+    document.querySelectorAll('[data-api]').forEach(function (s) { mk(s, R.subscription ? { kind: 'api', text: 'API-equivalent', tip: apiTip() } : null); });
+
+    // Tabs
+    TABS.forEach(function (t) {
+      var on = t.id === st['ui.focus'];
+      var b = $('tab-' + t.id);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+      b.tabIndex = on ? 0 : -1;
+      $('panel-' + t.id).hidden = !on;
+      var rb = $('rt-' + t.id);
+      if (on) rb.setAttribute('aria-current', 'true'); else rb.removeAttribute('aria-current');
+    });
+
+    renderHeader(fs);
+    renderMiss();
+    renderWait('s1', R.s1, st['s1.minutes'], st['s1.perDay'], 'break', anim);
+    renderWait('s2', R.s2, st['s2.minutes'], st['s2.perDay'], 'reply', anim);
+    renderWait('s3', R.s3, st['s3.minutes'], st['s3.perDay'], 'run', anim);
+    renderS4(anim);
+    renderS5(anim);
+    renderS6(anim);
+    renderStrip(anim);
+    renderRail();
+    TABS.forEach(function (t) { renderRecCaption(t.id); });
+    renderShots();
+    renderFooter();
+    renderLive();
+  }
+  /** One polite announcement of the focused tab's final result (never the count-up frames). */
+  function renderLive() {
+    var f = st['ui.focus'], t = TAB_BY_ID[f], v;
+    if (f === 's6') v = 'budget lasts ' + fmtDays(R.s6.daysReal) + ' days';
+    else if (f === 'strip') { var y = R.strip.yours.shown ? R.strip.yours : R.strip.rows.filter(function (r) { return r.isYours; })[0]; v = y ? fmtUsd(y.monthUsd) + ' a month with your tool' : ''; }
+    else v = fmtUsd(R[f].perMonthUsd) + ' a month';
+    setText('live', t.short + ': ' + v);
+  }
+
+  function renderHeader(fs) {
+    fs = fs || M.fieldStatus(st['g.profile'], st['g.model']);
+    var rates = R.rates;
+    var ci = $('ctxIn');
+    if (document.activeElement !== ci) ci.value = fmtK(R.C);
+    var cap = st['g.useAbs'] ? fmtTok(R.C) + ' tokens, typed' : fmtTok(R.C) + ' · ' + fmtNum(st['g.fillPct'], 2) + '% of ' + fmtK(+st['g.window']);
+    setText('ctxCap', cap);
+    mk($('mkCtx'), fs['g.window'] && !st['g.useAbs'] ? { kind: 'unv', text: 'unverified window', tip: withSources(fs['g.window'].note, fs['g.window'].facts) } : null);
+    var lcOn = R.main.long;
+    mk($('mkModel'), lcOn ? { kind: 'lc', text: 'long-context price', tip: 'Context + new input (' + fmtTok(R.C + rates.newTok) + ') is above ' + fmtTok(rates.lc.threshold) + ' tokens, so every number on every tab uses the long-context price.' } : null);
+    setText('ttlChip', rates.ttlMain + ' min' + (rates.ttlSub !== rates.ttlMain ? ' · subagents ' + rates.ttlSub : ''));
+    var tf = fs['r.ttlMain'];
+    var ttlMk = null;
+    if (tf) {
+      var short = tf.status === 'source' ? (/client/.test(tf.badge) ? 'client source' : (/staff/.test(tf.badge) ? 'staff post' : 'source')) : 'unverified';
+      ttlMk = { kind: tf.status === 'source' ? 'src' : 'unv', text: short, tip: withSources(tf.badge.replace(/ - edit me$/, '') + '. ' + tf.note, tf.facts) };
+    }
+    if (gptOn()) ttlMk = ttlMk || null;
+    mk($('mkTtl'), ttlMk);
+  }
+  function gptOn() { return R.rates.provider === 'openai'; }
+
+  function renderMiss() {
+    var rates = R.rates, main = R.main;
+    setText('missVal', '+' + fmtUsd(R.missUsd));
+    setText('missCr', R.subscription ? '' : (rates.usdPerCredit ? fmtCr(R.missUsd / rates.usdPerCredit) + ' credits' : ''));
+    $('missApi').hidden = !R.subscription;
+    mk($('missApi'), R.subscription ? { kind: 'api', text: 'API-equivalent', tip: apiTip() } : null);
+    var gptLine = gptOn() ? '<br><span class="pl">On GPT, between 5 and ' + rates.ttlMain + ' min, about <b>' + pct(rates.gptHit) + '</b> of returns still hit</span> <span class="q">(community-measured)</span>' : '';
+    setHTML('missPair', '<span class="pl">Back within ' + rates.ttlMain + ' min: <b>' + fmtUsd(R.warmResumeUsd) + '</b> to read ' + fmtK(R.C) + ' tokens</span> · <span class="pl">later: <b>' + fmtUsd(R.coldResumeUsd) + '</b> to write them again</span>' + gptLine);
+    setText('missFx', fmtTok(R.C) + ' tokens × (' + p(main.write) + ' write − ' + p(main.read) + ' read per MTok)' + (main.long ? ' · long-context price' : '') +
+      (R.subscription ? ' · subscription: marginal $0 inside the 5-hour limit, but it burns the limit' : ''));
+    // Plain sentences on screen; the research IDs move into the tooltip.
+    var wRaw = R.warnings.join(' ');
+    var wShown = noIds(wRaw).replace(/^Context C \((\d+)\) is larger than the context window \((\d+)\)\./, function (m0, a, b) { return 'Your context (' + fmtTok(+a) + ' tokens) is larger than the context window (' + fmtTok(+b) + ').'; });
+    setText('warnings', wShown);
+    var wIds = idsOf(wRaw), wn = $('warnings');
+    if (wIds.length) { wn.setAttribute('data-tip', 'Sources in the research notes: ' + wIds.join(', ') + '.'); wn.tabIndex = 0; }
+    else { wn.removeAttribute('data-tip'); wn.removeAttribute('tabindex'); }
+  }
+
+  /** opt.cls: extra class on the row ('fixok' paints the fill green); opt.vcls: colour of the value instead of lost/saved by miss part. */
+  function bar(label, total, missPart, max, valueText, attrs, pkey, opt) {
+    opt = opt || {};
+    var w = max > 0 ? Math.max(0.5, 100 * total / max) : 0;
+    var mw = total > 0 ? 100 * missPart / total : 0;
+    var tag = attrs ? 'button' : 'div';
+    return '<' + tag + ' class="bar' + (attrs && attrs.on ? ' on' : '') + (opt.cls ? ' ' + opt.cls : '') + '"' + (attrs ? ' type="button" data-layout="' + attrs.layout + '" aria-pressed="' + (attrs.on ? 'true' : 'false') + '"' : '') + '>' +
+      '<span class="bl">' + label + '</span><span class="track"><span class="fill" style="width:' + w + '%"><span class="m" style="width:' + mw + '%"></span></span></span>' +
+      '<span class="bv ' + (opt.vcls || (missPart > 1e-12 ? 'lost' : 'saved')) + '"' + (pkey ? ' data-p="' + pkey + '"' : '') + '>' + valueText + '</span></' + tag + '>';
+  }
+
+  /** Timeline: idle gap against the cache lifetime. Geometry only; every value comes from the model.
+   *  `polls` > 0 means the fix is on and the polls keep the cache alive: the part after the lifetime is then drawn as still cached. */
+  function timeline(id, s, pollEvery, polls) {
+    var ttl = s.ttl, gap = s.gap, gpt = gptOn();
+    var kept = polls > 0;
+    var sure = gpt ? Math.min(M.GPT_SURE_WARM_MIN, ttl) : ttl;
+    var max = Math.max(gap, ttl, 1) * 1.1;
+    function x(v) { return (100 * Math.max(0, Math.min(v, max)) / max).toFixed(3) + '%'; }
+    var h = '<div class="tl"><div class="track">';
+    h += '<div class="life" style="width:' + x(kept ? Math.max(gap, ttl) : ttl) + '"></div>';
+    var a = Math.min(gap, sure);
+    h += '<div class="seg n' + (gap <= sure ? ' end' : '') + '" style="left:0;width:' + x(a) + '"></div>';
+    if (gpt && gap > sure) { var b = Math.min(gap, ttl); h += '<div class="seg p' + (gap <= ttl ? ' end' : '') + '" style="left:' + x(sure) + ';width:' + x(b - sure) + '"></div>'; }
+    if (gap > ttl) h += '<div class="seg ' + (kept ? 'n' : 'l') + ' end" style="left:' + x(ttl) + ';width:' + x(gap - ttl) + '"></div>';
+    // At most 40 poll dots, and none for an interval of 0: the picture never loops over the model's poll count.
+    var nDots = pollEvery > 0 ? Math.min(polls, Math.floor(max / pollEvery), 40) : 0;
+    for (var i = 1; i <= nDots; i++) h += '<div class="poll" style="left:' + x(i * pollEvery) + '"></div>';
+    var near = Math.abs(gap - ttl) / max < 0.16;
+    var ttlRight = gap < ttl;
+    h += '<div class="tick" style="left:' + x(ttl) + '"><span class="tlab' + (near && !ttlRight ? ' r' : '') + '" style="left:0">' + (kept ? 'Cache would expire · ' : 'Cache expires · ') + fmtNum(ttl, 2) + ' min</span></div>';
+    var gx = x(gap);
+    var youLab = { s1: 'You are back', s2: 'You reply', s3: 'Job done' }[id] + ' · ' + fmtNum(gap, 2) + ' min';
+    var rightSide = gap / max > 0.8, leftSide = gap / max < 0.08;
+    h += '<span class="blab" style="left:' + gx + ';' + (rightSide ? 'transform:translateX(-100%)' : (leftSide ? 'transform:none' : '')) + '">' + (rightSide ? youLab + ' ▲' : '▲ ' + youLab) + '</span>';
+    h += '</div></div>';
+    var lg = '<div class="legend"><span><span class="sw2" style="background:var(--saved-tint);box-shadow:inset 0 0 0 1px var(--line-2)"></span>cache alive</span><span><span class="sw2" style="background:var(--neutral)"></span>still cached: costs nothing extra</span>' +
+      (gpt ? '<span><span class="sw2" style="background:repeating-linear-gradient(135deg,var(--partial) 0 3px,transparent 3px 5px)"></span>GPT: ' + pct(M.missProbAt(R.rates, ttl, ttl)) + ' miss (community-measured)</span>' : '') +
+      (kept ? '' : '<span><span class="sw2" style="background:var(--lost)"></span>expired: written again</span>') +
+      (kept ? '<span><span class="sw2" style="background:var(--card);box-shadow:inset 0 0 0 2px var(--text);border-radius:50%"></span>agent poll: keeps the cache alive</span>' : '') + '</div>';
+    return h + lg;
+  }
+
+  function renderWait(id, s, minutes, perDay, noun, anim) {
+    var colour = null;
+    if (s.remedyOn && !s.warm) colour = s.poll.withPollingUsd < s.baseUsd ? 'saved' : 'lost';
+    var mc = colour || cls(s.perMonthUsd);
+    setText(id + '-hl', 'Extra cost per month');
+    var hv = $(id + '-hv'); hv.className = 'hval tnum ' + mc;
+    setNum(hv, s.perMonthUsd, fmtUsd, anim);
+    setText(id + '-hs', R.subscription ? '' : (crTxt(s.perMonthUsd) ? crTxt(s.perMonthUsd) + ' · ' : '') + R.days + ' working days');
+    setHTML(id + '-kpis',
+      kpi('Per ' + noun, fmtUsd(s.perEventUsd), crTxt(s.perEventUsd), colour || cls(s.perEventUsd), id + '.event') +
+      kpi('Per day', fmtUsd(s.perDayUsd), crTxt(s.perDayUsd) || (perDay + ' × ' + fmtUsd(s.perEventUsd)), colour || cls(s.perDayUsd), id + '.day'));
+    // Story
+    var verb = { s1: 'You are away', s2: 'You read for', s3: 'The job runs' }[id];
+    var t = genPhrase(id, minutes, s.gap, verb) + ' The cache lives <b>' + fmtNum(s.ttl, 2) + ' min</b>.';
+    var who = { s1: 'When you come back', s2: 'Your reply', s3: 'The next turn' }[id];
+    var pMin = id !== 's2' ? F[id + '.pollEvery'].min : 0;
+    var badP = s.remedyOn && !(+st[id + '.pollEvery'] >= pMin); // e.g. a link with pollEvery=0
+    if (s.warm) t += ' ' + who + ' finds the cache still there: nothing extra to pay.';
+    else if (s.partial) t += ' On GPT the cache can live that long, but about <b>' + pct(s.missProb) + '</b> of such returns still miss <span class="q">(community-measured)</span>.';
+    else {
+      // With a working fix, the re-write is what would happen without it.
+      var fixWorks = s.remedyOn && !badP && s.poll.needed && s.poll.keepsWarm;
+      var lead = fixWorks ? 'Without the fix, ' + who.charAt(0).toLowerCase() + who.slice(1) : who;
+      t += ' ' + lead + (id === 's1' ? ', all ' : ' writes all ') + '<b>' + fmtK(R.C) + '</b> tokens' + (id === 's1' ? ' are written to the cache again.' : ' to the cache again.');
+    }
+    if (s.remedyOn && !s.warm) {
+      var pl = s.poll;
+      if (badP) t += ' Set a poll interval of at least ' + pMin + ' min.';
+      else if (!pl.needed) t += ' No poll is needed.';
+      else if (!pl.keepsWarm) t += ' With the fix: polling every ' + st[id + '.pollEvery'] + ' min is slower than the cache lifetime, so every poll misses too (<b>' + fmtUsd(pl.withPollingUsd) + '</b>). Set it below ' + s.ttl + ' min.';
+      else t += ' With the fix, the agent polls <b>' + pl.polls + '</b> times (' + fmtUsd(pl.pollUsd) + ' each): <b>' + fmtUsd(pl.withPollingUsd) + '</b> instead of ' + fmtUsd(s.baseUsd) + '.';
+    }
+    setHTML(id + '-story', t);
+    // Visuals
+    var showPolls = s.remedyOn && s.poll.needed && s.poll.keepsWarm ? s.poll.polls : 0;
+    setHTML(id + '-tl', timeline(id, s, +st[id + '.pollEvery'] || 0, showPolls));
+    var bars = '';
+    if (id === 's3' || (id === 's1' && s.remedyOn)) {
+      var pl2 = s.poll, withP = pl2.withPollingUsd, without = pl2.withoutPollingUsd;
+      var mx = Math.max(withP, without, 1e-9);
+      bars = bar('One miss, no fix', without, without, mx, fmtUsd(without), null, id + '.barMiss') +
+        bar('Agent polls every ' + st[id + '.pollEvery'] + ' min', withP, pl2.keepsWarm ? pl2.lastMissProb * pl2.missUsd : withP, mx, fmtUsd(withP), null, id + '.barPoll',
+          withP < without ? { cls: 'fixok', vcls: 'saved' } : { vcls: 'lost' });
+    }
+    setHTML(id + '-bars', bars);
+    $(id + '-bars').style.display = bars ? '' : 'none';
+    var note = '';
+    if (id !== 's2' && s.poll.needed && s.poll.keepsWarm && isFinite(s.poll.maxWorthwhileGapMin)) {
+      note = 'Polling every ' + st[id + '.pollEvery'] + ' min pays off for waits up to <b>' + fmtNum(s.poll.maxWorthwhileGapMin, 1) + ' min</b>.' +
+        ' <span class="mk" tabindex="0" data-tip="A bare keep-alive read (API only, no output tokens) pays off up to ' + fmtNum(s.poll.bareMaxGapMin, 1) + ' min. Source: F14.">API keep-alive<span class="sr">: pays off up to ' + fmtNum(s.poll.bareMaxGapMin, 1) + ' min</span></span>';
+    }
+    setHTML(id + '-note', note);
+    // Maths
+    var fx = 'C = your context = ' + fmtTok(R.C) + ' tokens<br>gap = generation + wait = ' + fmtNum(R.rates.genMin, 2) + ' + ' + minutes + ' = ' + fmtNum(s.gap, 2) + ' min<br>' +
+      'extra per ' + noun + ' = ' + (s.warm ? '0, because gap ≤ lifetime (' + s.ttl + ' min)' : (s.partial ? pct(s.missProb) + ' × ' : '') + 'C × (write − read) = ' + fmtUsd(s.baseUsd)) +
+      (s.remedyOn && !s.warm ? '<br>with polling: polls × (C × read + poll output × output + poll input × write) = ' + s.poll.polls + ' × ' + fmtUsd(s.poll.pollUsd) + ' = ' + fmtUsd(s.poll.withPollingUsd) : '') +
+      '<br>per day = ' + perDay + ' × ' + fmtUsd(s.perEventUsd) + ' = ' + fmtUsd(s.perDayUsd) + '<br>per month = per day × ' + R.days + ' working days = ' + fmtUsd(s.perMonthUsd);
+    if (id !== 's2') {
+      var pl3 = s.poll;
+      fx += '<br><br>polls = ceil(gap / P) − 1 = ' + pl3.polls + ' · one poll = ' + fmtUsd(pl3.pollUsd) + ' · break-even ' + fmtNum(pl3.breakEvenPolls, 1) + ' polls (' + fmtNum(pl3.bareBreakEvenPolls, 1) + ' with a bare keep-alive read)' +
+        (!pl3.keepsWarm && pl3.needed ? '<br>P is longer than the lifetime: ' + pl3.polls + ' cold polls' + (pl3.lastMissProb > 0 ? ' and a cold resume' : ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one is warm') : '');
+    }
+    setHTML(id + '-fx', fx);
+  }
+
+  var LAYOUT_NAME = { hub: 'LLM hub-and-spoke', sequential: 'Sequential single agent', code: 'Orchestration in code' };
+  function renderS4(anim) {
+    var s = R.s4, L = s.layouts;
+    var mc = s.missPerDayUsd > 1e-12 ? 'lost' : 'saved';
+    setText('s4-hl', 'Cost of waiting per month · ' + LAYOUT_NAME[s.layout]);
+    var hv = $('s4-hv'); hv.className = 'hval tnum ' + mc;
+    setNum(hv, s.perMonthUsd, fmtUsd, anim);
+    // With one run a day, per run and per day are the same number: one KPI, and the per-day value moves into the caption.
+    var oneRun = Math.abs(s.perRunUsd - s.perDayUsd) < 5e-5;
+    setHTML('s4-hs', (R.subscription ? '' : (crTxt(s.perMonthUsd) ? crTxt(s.perMonthUsd) + ' · ' : '')) + plural(st['s4.runs'], 'run', 'runs') + ' a day' +
+      (oneRun ? ' = <span data-p="s4.day">' + fmtUsd(s.perDayUsd) + '</span> a day' : '') + ' · ' + R.days + ' working days');
+    var d = s.savingCodeVsHubUsd;
+    setHTML('s4-kpis',
+      kpi('Per run', fmtUsd(s.perRunUsd), crTxt(s.perRunUsd), mc, 's4.run') +
+      (oneRun ? '' : kpi('Per day', fmtUsd(s.perDayUsd), crTxt(s.perDayUsd), mc, 's4.day')) +
+      kpi(d >= 0 ? 'Code saves, per run' : 'Code costs more, per run', fmtUsd(Math.abs(d)), 'vs hub-and-spoke', d >= 0 ? 'saved' : 'lost', 's4.saving'));
+    var t = 'The orchestrator holds <b>' + fmtK(st['s4.co']) + '</b> tokens and waits <b>' + fmtNum(s.gaps.dur, 2) + ' min</b>' +
+      (R.rates.genMin > 0 ? ' (' + st['s4.dur'] + ' min run + ' + fmtNum(R.rates.genMin, 2) + ' min generation)' : '') + ' for each of ' + st['s4.waves'] + ' waves of ' + st['s4.subs'] + ' subagents. The cache lives <b>' + R.rates.ttlMain + ' min</b>' + (R.rates.ttlSub !== R.rates.ttlMain ? ' (subagents ' + R.rates.ttlSub + ')' : '') + '.';
+    t += L.hub.missUsd > 1e-12 ? ' Hub-and-spoke pays <b>' + fmtUsd(L.hub.missUsd) + '</b> per run in re-writes.' : ' Hub-and-spoke pays no re-writes here.';
+    t += ' Orchestration in code ' + (d >= 0 ? 'saves <b>' + fmtUsd(d) + '</b>' : 'costs <b>' + fmtUsd(-d) + '</b> more') + ' per run: no model sits and waits.';
+    setHTML('s4-story', t);
+    var max = Math.max(L.hub.usd, L.sequential.usd, L.code.usd, 1e-9);
+    var h = '';
+    var HOW = { hub: 'A main agent waits while subagents work', sequential: 'One agent does every task in a row', code: 'A script starts the subagents; no model waits' };
+    ['hub', 'sequential', 'code'].forEach(function (k) {
+      var on = s.layout === k;
+      h += bar(LAYOUT_NAME[k] + '<span class="swd">' + HOW[k] + '</span>' + (on ? ' <span class="mk mine">in my month</span>' : ''), L[k].usd, L[k].missUsd, max, fmtUsd(L[k].usd), { layout: k, on: on }, 's4.' + k);
+    });
+    setHTML('s4-bars', h);
+    setHTML('s4-legend', '<span>Cost of waiting, per run:</span><span><span class="sw2" style="background:var(--lost)"></span>re-writes (cache misses)</span><span><span class="sw2" style="background:var(--neutral)"></span>cached reads and fresh writes (handoffs, longer-lifetime write price)</span>');
+    var note;
+    if (L.sequential.missUsd > 1e-12) note = 'Sequential does not fix it: the single agent still waits ' + st['s4.wait'] + ' min on every tool call, now holding ' + fmtK(s.cAvg) + ' tokens instead of ' + fmtK(st['s4.cs']) + '.';
+    else note = 'Sequential misses nothing here only because its waits (' + fmtNum(s.gaps.wait, 2) + ' and ' + fmtNum(s.gaps.problem, 2) + ' min with generation) fit inside the ' + R.rates.ttlMain + '-min lifetime. Longer waits bring the misses back.';
+    setText('s4-note', note);
+    var rows = '<table><tr><th>Layout</th><th>Step</th><th>How</th><th style="text-align:right">Cost</th></tr>';
+    [['hub', L.hub], ['sequential', L.sequential], ['code', L.code]].forEach(function (pair) {
+      pair[1].lines.forEach(function (l) {
+        var ttl = l.bucket === 'sub' ? R.rates.ttlSub : R.rates.ttlMain;
+        var state = l.kind === 'premium' ? 'write premium over the 5-minute price' : (l.gap == null ? 'fresh write' :
+          (l.cold ? 'cold (' + fmtNum(l.gap, 2) + ' min > ' + ttl + ')' : (l.partial ? pct(l.missProb) + ' miss chance (' + fmtNum(l.gap, 2) + ' min)' : 'warm (' + fmtNum(l.gap, 2) + ' min ≤ ' + ttl + ')')));
+        rows += '<tr><td>' + LAYOUT_NAME[pair[0]] + '</td><td>' + esc(l.label) + '</td><td>' + esc(l.formula) + ' · ' + fmtNum(l.count, 2) + ' × ' + fmtK(l.C) + ' · ' + state + '</td><td class="v">' + fmtUsd(l.usd) + '</td></tr>';
+      });
+    });
+    rows += '</table><br>resume(C, gap) = C × read if gap ≤ lifetime, else C × write · gap = generation + wait · sequential context = (C_o + C_s) / 2 = ' + fmtK(s.cAvg) +
+      '<br>"Include in my month" adds only the re-write part (' + fmtUsd(s.missPerDayUsd) + ' a day) to the Budget tab.';
+    setHTML('s4-fx', rows);
+  }
+
+  function renderS5(anim) {
+    var s = R.s5, gpt = gptOn();
+    setText('s5-hl', 'Extra cost per month');
+    var hv = $('s5-hv'); hv.className = 'hval tnum ' + cls(s.perMonthUsd);
+    setNum(hv, s.perMonthUsd, fmtUsd, anim);
+    // With one hour a day, per hour and per day are the same number: one KPI, and the per-day value moves into the caption.
+    var oneHour = Math.abs(s.perHourUsd - s.perDayUsd) < 5e-5;
+    setHTML('s5-hs', (R.subscription ? '' : (crTxt(s.perMonthUsd) ? crTxt(s.perMonthUsd) + ' · ' : '')) + st['s5.hours'] + ' h a day' +
+      (oneHour ? ' = <span data-p="s5.day">' + fmtUsd(s.perDayUsd) + '</span> a day' : '') + ' · ' + R.days + ' working days');
+    var n = Math.round(st['s5.n']);
+    var maxN = isFinite(s.largestWarmN) ? String(s.largestWarmN) : '∞';
+    setHTML('s5-kpis',
+      kpi('Per hour', fmtUsd(s.perHourUsd), crTxt(s.perHourUsd), cls(s.perHourUsd), 's5.hour') +
+      (oneHour ? '' : kpi('Per day', fmtUsd(s.perDayUsd), crTxt(s.perDayUsd), cls(s.perDayUsd), 's5.day')) +
+      kpi('Each agent waits', fmtNum(s.gap, 1) + '<span style="font-size:.45em"> min</span>', 'lifetime ' + s.ttl + ' min', s.warm ? 'saved' : 'lost', 's5.gap') +
+      kpi(gpt ? 'Most agents in ' + s.ttl + ' min' : 'Most agents, no miss', maxN, n <= s.largestWarmN ? 'you run ' + n + ': fine' : 'you run ' + n, n <= s.largestWarmN ? 'saved' : 'lost', 's5.maxn'));
+    var t = 'You spend <b>' + st['s5.r'] + ' min</b> with each of <b>' + n + '</b> agents, so each one waits <b>' + fmtNum(s.gap, 2) + ' min</b>' + (R.rates.genMin > 0 ? ' (incl. ' + fmtNum(R.rates.genMin, 2) + ' min of generation)' : '') + '. The cache lives <b>' + s.ttl + ' min</b>.';
+    if (s.warm) t += ' Every agent still has its cache when you come back.';
+    else if (s.partial) t += ' On GPT about <b>' + pct(s.missProb) + '</b> of returns still miss: ' + fmtNum(s.returnsPerHour, 1) + ' returns an hour × ' + fmtUsd(s.perReturnUsd) + ' expected.';
+    else t += ' Every return writes ' + fmtK(st['s5.ca']) + ' tokens again: <b>' + fmtNum(s.returnsPerHour, 1) + '</b> returns an hour × <b>' + fmtUsd(s.perReturnUsd) + '</b>.';
+    setHTML('s5-story', t);
+    // At most 40 dots, whatever is typed: the rest is a "+N more" label.
+    var shown = Math.min(Math.max(12, n), 40), h = '', full = n <= s.largestWarmN;
+    for (var i = 1; i <= shown; i++) {
+      var c = i <= n ? (full ? (s.partial ? 'p' : 'w') : 'c') : '';
+      var sr = c === 'c' ? '<span class="sr"> expired</span>' : (c === 'p' ? '<span class="sr"> may miss</span>' : (c === 'w' ? '<span class="sr"> cached</span>' : ''));
+      h += '<div class="dot ' + c + '">' + i + sr + '</div>';
+      if (i === s.largestWarmN && i < shown) h += '<div class="limit" role="img" aria-label="Cache limit: up to ' + i + ' agents"><span aria-hidden="true">cache limit</span></div>';
+    }
+    if (n > shown) h += '<span class="more">+' + fmtNum(n - shown, 0) + ' more</span>';
+    setHTML('s5-dots', h);
+    setHTML('s5-legend', '<span><span class="sw2" style="background:var(--saved);border-radius:50%"></span>agent finds its cache</span><span><span class="sw2" style="background:var(--lost) linear-gradient(135deg,transparent 40%,var(--card) 40% 58%,transparent 58%);border-radius:50%"></span>agent finds an expired cache</span>' +
+      (s.partial ? '<span><span class="sw2" style="background:var(--card);box-shadow:inset 0 0 0 3px var(--partial);border-radius:50%"></span>GPT: about ' + pct(s.missProb) + ' of returns miss</span>' : '') + '<span><span class="sw2" style="box-shadow:inset 0 0 0 1.5px var(--line-2);border-radius:50%"></span>not running</span>');
+    setHTML('s5-fx', 'wait = (N − 1) × R + generation = ' + (n - 1) + ' × ' + st['s5.r'] + ' + ' + fmtNum(R.rates.genMin, 2) + ' = ' + fmtNum(s.gap, 2) + ' min<br>most agents without a miss = floor((lifetime − generation) / R) + 1 = floor(' + fmtNum(s.ttl - R.rates.genMin, 2) + ' / ' + st['s5.r'] + ') + 1 = ' + maxN +
+      '<br>returns an hour = 60 / R = ' + fmtNum(s.returnsPerHour, 2) + ' · extra per hour = returns × C × (write − read) = ' + fmtUsd(s.perHourUsd) +
+      '<br>max minutes per agent at this N = (lifetime − generation) / (N − 1) = ' + (isFinite(s.maxMinutesEach) ? fmtNum(s.maxMinutesEach, 2) : '∞') +
+      '<br>per day = per hour × ' + st['s5.hours'] + ' h = ' + fmtUsd(s.perDayUsd) + ' · per month = × ' + R.days + ' days = ' + fmtUsd(s.perMonthUsd));
+  }
+
+  function renderS6(anim) {
+    var s = R.s6, budget = R.budget;
+    setText('s6-hl', R.subscription ? 'Plan: flat fee · at API prices, $' + fmtNum(budget, 0) + ' would last' : 'Your $' + fmtNum(budget, 0) + ' budget lasts');
+    function tile(label, days, monthUsd, colour, cl, pk, note) {
+      return '<div class="tile' + (cl ? ' ' + cl : '') + '"><div class="th"><span class="tt">' + label + '</span></div>' +
+        '<div class="tv tnum ' + colour + '"><span data-p="' + pk + '" data-anim="' + days + '">' + fmtDays(days) + '</span><span class="u">days</span></div>' +
+        '<div class="td"><b data-p="' + pk + 'Month">' + fmtUsd(monthUsd) + '</b> a month' + (crTxt(monthUsd) ? ' · ' + crTxt(monthUsd) : '') + '</div>' +
+        (note ? '<div class="tn2">' + note + '</div>' : '') + '</div>';
+    }
+    var ttlTxt = R.rates.ttlMain + '-min cache';
+    setHTML('s6-tiles',
+      tile('With your ' + ttlTxt, s.daysReal, s.realMonthUsd, s.extraDayUsd > 1e-12 ? 'lost' : 'saved', 'yours', 's6.days', 'what you pay now: traffic + re-writes') +
+      tile('If the cache never expired', s.daysWarm, s.warmMonthUsd, 'saved', '', 's6.warm', 'the same traffic, no re-writes') +
+      tile('With no caching at all', s.daysNoCache, s.noCacheMonthUsd, '', '', 's6.nocache', 'every token at the full input price'));
+    if (anim) document.querySelectorAll('#s6-tiles [data-anim]').forEach(function (n) { setNum(n, +n.getAttribute('data-anim'), fmtDays, true); });
+    setText('s6-share', fmtNum(s.rewriteShare * 100, 0) + '%');
+    var wPct = s.realDayUsd > 0 ? 100 * s.warmDayUsd / s.realDayUsd : 100;
+    setHTML('s6-stack', '<div style="width:' + wPct + '%;background:var(--neutral)"></div><div style="width:' + (100 - wPct) + '%;background:var(--lost)"></div>');
+    setHTML('s6-legend', '<span><span class="sw2" style="background:var(--neutral)"></span>normal traffic ' + fmtUsd(s.warmDayUsd) + ' a day</span><span><span class="sw2" style="background:var(--lost)"></span>re-writes ' + fmtUsd(s.extraDayUsd) + ' a day</span>');
+    var t = 'Your normal traffic costs <b>' + fmtUsd(s.warmDayUsd) + '</b> a day while the cache stays alive. ';
+    t += s.extras.length ? 'Re-writes from the tabs you included add <b>' + fmtUsd(s.extraDayUsd) + '</b> a day: <b>' + pct(s.rewriteShare) + '</b> of what you spend.' : 'No tab is included, so there are no re-writes.';
+    setHTML('s6-story', t);
+    var rows = '<table><tr><th>Part</th><th>How</th><th style="text-align:right">Per day</th></tr><tr><td>Normal traffic, warm</td><td>' + st['s6.requests'] + ' requests × (' + fmtK(s.cAvg) + ' × read + ' + fmtTok(st['s6.newTok']) + ' × write + ' + fmtTok(st['s6.outTok']) + ' × output) = ' + st['s6.requests'] + ' × ' + fmtUsd(s.warmPerRequestUsd) + '</td><td class="v">' + fmtUsd(s.warmDayUsd) + '</td></tr>';
+    s.extras.forEach(function (e) { rows += '<tr><td>Re-writes: ' + esc(e.name) + '</td><td>from that tab</td><td class="v">' + fmtUsd(e.usd) + '</td></tr>'; });
+    if (!s.extras.length) rows += '<tr><td colspan="3">No tab is marked "Include in my month".</td></tr>';
+    rows += '</table><br>days = budget / cost per day · no caching = requests × ((C_avg + new) × input + output × output price) = ' + st['s6.requests'] + ' × ' + fmtUsd(s.noCachePerRequestUsd) +
+      '<br>Approximation: scenario events count among the requests at the average context; their re-write cost is added on top.';
+    setHTML('s6-fx', rows);
+  }
+
+  function renderStrip(anim) {
+    var S = R.strip, claude = !gptOn();
+    var yoursRow = S.yours.shown ? S.yours : S.rows.filter(function (r) { return r.isYours; })[0];
+    var tiles = S.rows.slice();
+    if (S.yours.shown) tiles.unshift(S.yours);
+    $('strip-tiles').style.setProperty('--cols', tiles.length);
+    var best = S.rows.concat(S.yours.shown ? [S.yours] : []).filter(function (r) { return !r.hypothetical; }).sort(function (a, b) { return a.dayUsd - b.dayUsd; })[0];
+    var h = '';
+    tiles.forEach(function (r) {
+      var badge = '';
+      if (r.hypothetical) {
+        var ht = claude && r.id === 'ttl60' ? 'Your tool does not offer a 1-hour lifetime. Priced as if it existed, at the 1-hour price.'
+          : 'No ' + (claude ? '30-minute tier on Claude' : r.ttl + '-minute tier on GPT') + '. Priced as if it existed: ' + r.note + '.';
+        badge = '<span class="mk hyp" tabindex="0" data-tip="' + esc(ht) + '">hypothetical<span class="sr">: ' + esc(ht) + '</span></span>';
+      }
+      else if (r.isYours) badge = '<span class="mk mine">your tool</span>';
+      var colour = r.hypothetical ? '' : (r.dayUsd <= 1e-9 || (r === best && (!yoursRow || best.dayUsd < yoursRow.dayUsd - 1e-9)) ? 'saved' : (r.rewriteUsd > 1e-9 && r.id !== 'heartbeat' ? 'lost' : ''));
+      var dayLine = '<b data-p="strip.' + r.id + '.day">' + fmtUsd(r.dayUsd) + '</b> a day' + (crTxt(r.dayUsd) ? ' · ' + crTxt(r.dayUsd) : '');
+      var note = r.id === 'heartbeat'
+        ? 'The agent sends a short "are you done?" request every ' + st['strip.heartbeat'] + ' min, so the cache does not expire. Each poll costs one cache read plus a few tokens.'
+        : nbh(noIds(r.note.charAt(0).toUpperCase() + r.note.slice(1))) + '.';
+      if (r.dayUsd < -1e-9) note = 'Saves money: the cheaper write price outweighs the re-writes. ' + note;
+      if (Math.abs(r.premiumUsd) > 1e-9) note += ' Includes ' + fmtUsd(Math.abs(r.premiumUsd)) + ' a day ' + (r.premiumUsd > 0 ? 'extra' : 'saved') + ' on the write price of ' + fmtK(S.writtenTokensPerDay) + ' tokens written a day.';
+      if (r.id === 'heartbeat') {
+        var kt = 'A bare keep-alive read (API only, no output tokens) would cost ' + fmtUsd(r.bareUsd) + ' a day. Source: F14.';
+        note += ' <span class="mk" tabindex="0" data-tip="' + esc(kt) + '">API keep-alive<span class="sr">: ' + esc(kt) + '</span></span>';
+      }
+      if (r.id === 'heartbeat' && !(+st['strip.heartbeat'] >= F['strip.heartbeat'].min)) note = 'Set a poll interval of at least ' + F['strip.heartbeat'].min + ' min.';
+      var title = r.id === 'heartbeat' ? 'Agent polls every ' + st['strip.heartbeat'] + ' min' : (r.id === 'yours' ? 'Your setup' : nbh(r.label) + ' lifetime');
+      h += '<div class="tile' + (r.isYours ? ' yours' : '') + (r.hypothetical ? ' hypo' : '') + '"><div class="th"><span class="tt">' + title + '</span>' + badge + '</div>' +
+        '<div class="tv tnum ' + colour + '"><span data-p="strip.' + r.id + '.month" data-anim="' + r.monthUsd + '">' + fmtUsd(r.monthUsd) + '</span></div>' +
+        '<div class="td">' + dayLine + '</div><div class="tn2">' + note + '</div></div>';
+    });
+    setHTML('strip-tiles', h);
+    if (anim) document.querySelectorAll('#strip-tiles [data-anim]').forEach(function (n) { setNum(n, +n.getAttribute('data-anim'), fmtUsd, true); });
+    var yours = yoursRow;
+    var t = 'Same day, same tabs, before any fix. Your tool keeps the cache <b>' + R.rates.ttlMain + ' min</b>' + (R.rates.ttlSub !== R.rates.ttlMain ? ' (subagents ' + R.rates.ttlSub + ')' : '') + ': <b>' + fmtUsd(yours.monthUsd) + '</b> a month.';
+    if (best && best !== yours) t += ' Cheapest real option here: <b>' + (best.id === 'heartbeat' ? 'an agent that polls every ' + st['strip.heartbeat'] + ' min' : nbh(best.label) + ' lifetime') + '</b>, <b class="' + (best.dayUsd < yours.dayUsd - 1e-9 ? 'saved' : '') + '">' + fmtUsd(best.monthUsd) + '</b> a month.';
+    setHTML('strip-story', t);
+    setHTML('strip-note', 'Dashed tiles are lifetimes your tool or model does not offer, priced as if they existed. Tokens written a day: ' + fmtK(S.writtenTokensPerDay) + ', from ' + (S.writtenFrom === 'contexts' ? 'the contexts the included tabs build' : 'request traffic (Budget tab)') + '.' + (S.heartbeatKeepsWarm ? '' : ' The poll interval is longer than the lifetime, so polls miss too.'));
+    setHTML('strip-fx', 'C = the context of each included event<br>per lifetime: Σ events × (gap > lifetime ? C × (tile write − read) : 0) + tokens written a day × (tile write − your write)<br>tokens written a day = the larger of ' + st['s6.requests'] + ' requests × ' + fmtTok(st['s6.newTok']) + ' new tokens and the contexts the included tabs build (here ' + fmtK(S.writtenTokensPerDay) + ')<br>agent poll: polls = ceil(gap / interval) − 1, each poll = C × read + poll tokens<br>per month = per day × ' + R.days + ' working days');
+  }
+
+  function renderRail() {
+    function mo(x) { return fmtUsd(x) + '/mo'; }
+    var yours = R.strip.yours.shown ? R.strip.yours : R.strip.rows.filter(function (r) { return r.isYours; })[0];
+    var v = { s1: mo(R.s1.perMonthUsd), s2: mo(R.s2.perMonthUsd), s3: mo(R.s3.perMonthUsd), s4: mo(R.s4.perMonthUsd), s5: mo(R.s5.perMonthUsd),
+      s6: 'lasts ' + fmtDays(R.s6.daysReal) + ' days', strip: yours ? mo(yours.monthUsd) : '' };
+    TABS.forEach(function (t) {
+      setText(t.id + '-tf', v[t.id]);
+      $('tab-' + t.id).setAttribute('aria-label', t.short + ', ' + v[t.id].replace('/mo', ' a month'));
+    });
+  }
+
+  // One line of assumptions under the tab title in recording mode (index.html REC + renderRecInputs, in plain words)
+  function renderRecCaption(id) {
+    var g = R.rates.genMin, parts = [];
+    var REC = {
+      s1: function () { return ['Break ' + st['s1.minutes'] + ' min', plural(st['s1.perDay'], 'break', 'breaks') + ' a day', st['s1.poll'] ? 'agent polls every ' + st['s1.pollEvery'] + ' min' : null]; },
+      s2: function () { return ['Reading ' + st['s2.minutes'] + ' min', plural(st['s2.perDay'], 'reply', 'replies') + ' a day']; },
+      s3: function () { return ['Tests ' + st['s3.minutes'] + ' min', plural(st['s3.perDay'], 'run', 'runs') + ' a day', st['s3.poll'] ? 'background run, poll every ' + st['s3.pollEvery'] + ' min' : null]; },
+      s4: function () { return ['Orchestrator ' + fmtK(st['s4.co']), st['s4.waves'] + ' waves × ' + st['s4.subs'] + ' subagents of ' + fmtK(st['s4.cs']), st['s4.dur'] + ' min each', 'tool wait ' + st['s4.wait'] + ' min',
+        plural(st['s4.problems'], 'problem', 'problems') + ', ' + st['s4.problemMin'] + ' min each from ' + aAn(fmtK(st['s4.h'])) + ' ' + fmtK(st['s4.h']) + ' handoff', plural(st['s4.runs'], 'run', 'runs') + ' a day']; },
+      s5: function () { return [st['s5.n'] + ' agents', st['s5.r'] + ' min with each', fmtK(st['s5.ca']) + ' context each', st['s5.hours'] + ' h a day']; },
+      s6: function () { return ['$' + fmtNum(st['g.budget'], 0) + ' budget', st['s6.requests'] + ' requests a day', 'average context ' + st['s6.avgPct'] + '% of the full size', fmtK(st['s6.newTok']) + ' new + ' + fmtK(st['s6.outTok']) + ' output tokens each']; },
+      strip: function () { return ['Agent poll every ' + st['strip.heartbeat'] + ' min', 'the tabs you included, before fixes']; }
+    };
+    parts = REC[id]().filter(Boolean);
+    parts.push(R.days + ' working days');
+    if (id !== 's6' && g > 0) parts.push('+ ' + fmtNum(g, 2) + ' min generation per turn');
+    if (id === 's4' && st['s4.layout'] !== 'hub') parts.push('my month: ' + LAYOUT_NAME[st['s4.layout']]);
+    setText(id + '-rec', parts.join(' · '));
+  }
+
+  function renderFooter() {
+    var r = R.rates;
+    setHTML('assume', 'Assumptions: ' + fmtNum(r.genMin, 2) + ' min to generate an answer · ' + R.days + ' working days a month · one agent poll = ' + st['g.pollOut'] + ' output + ' + st['g.pollIn'] + ' new input tokens' +
+      (gptOn() ? ' · GPT hit rate ' + pct(r.gptHit) + ' for returns after 5 min (community-measured)' : '') + (R.subscription ? ' · subscription amounts are API-equivalent' : '') + '.');
+    setText('asof', 'Prices as of ' + M.AS_OF);
+    setText('tele', 'EP.09 · Prompt cache · as of ' + M.AS_OF);
+  }
+
+  // ------------------------------------------------------------------ start
+  st = M.decodeState(location.hash);
+  build();
+  syncInputs();
+  renderEditionBtn();
+  try { if (new URLSearchParams(location.search).get('settings') === 'open') toggleDrawer(true); } catch (e) { /* ignore */ }
+  render();
+})();
+</script>
+</body>
+</html>

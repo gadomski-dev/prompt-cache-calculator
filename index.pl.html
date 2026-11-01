@@ -1,0 +1,1066 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Symulator TTL prompt cache</title>
+<style>
+  @font-face { font-family: "League Spartan"; src: url("fonts/LeagueSpartan-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: "Geist"; src: url("fonts/Geist-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+  @font-face { font-family: "Geist Mono"; src: url("fonts/GeistMono-Variable.ttf") format("truetype"); font-weight: 100 900; font-display: block; }
+
+  :root {
+    --ink: #101010; --signal: #FF5C18; --ember: #C2410C; --sand: #EFE8DE; --mist: #F1F1EE;
+    --slate: #5A5A5A; --crimson: #D81B3A; --circuit: #0B7F45; --paper: #FFFFFF;
+    --hero: 56px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); }
+  body { font-family: "Geist", system-ui, sans-serif; font-size: 18px; line-height: 1.35; }
+  h1, h2, h3 { font-family: "League Spartan", "Geist", sans-serif; margin: 0; letter-spacing: -0.01em; }
+  .mono, input.num, .cval { font-family: "Geist Mono", ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  /* Big numbers: Geist with tabular figures, so columns align and "." and "," stay narrow */
+  .hero-val, .bigmiss .val, .tile .tv, .tot b, .sec .big, .bar .bv, .cbig { font-family: "Geist", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+  .wrap { max-width: 1880px; margin: 0 auto; padding: 0 20px; }
+
+  /* Header */
+  .top { background: var(--ink); color: var(--paper); }
+  .top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding-top: 16px; padding-bottom: 16px; }
+  .kicker { font-family: "Geist Mono", monospace; color: var(--signal); font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .top h1 { font-size: 46px; font-weight: 700; line-height: 1.05; margin-top: 4px; }
+  .ctxline { font-size: 18px; margin-top: 6px; }
+  .explain { font-size: 18px; margin-top: 6px; max-width: 1100px; color: #E9E9E4; }
+  .explain b { color: var(--paper); }
+  .bigmiss { text-align: right; }
+  .bigmiss .lab { font-size: 18px; }
+  .bigmiss .val { font-size: 76px; font-weight: 700; color: #FF4D6A; line-height: 1; }
+  .bigmiss .sub { font-size: 18px; }
+  .btns { display: flex; flex-direction: column; gap: 8px; }
+  button { font: inherit; font-size: 16px; font-weight: 600; cursor: pointer; border-radius: 6px; padding: 8px 14px; border: 2px solid var(--paper); background: transparent; color: var(--paper); }
+  button.on { background: var(--signal); border-color: var(--signal); color: var(--ink); }
+
+  .formula-bar { padding: 10px 0 6px; }
+  .formula, .fx { color: var(--slate); font-size: 16px; }
+  .fx b { color: var(--slate); }
+  .warn { color: var(--crimson); font-size: 16px; font-weight: 600; }
+
+  /* Controls */
+  .controls { background: var(--sand); border-radius: 10px; padding: 14px 16px; margin: 8px 0 12px; }
+  .row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: flex-end; }
+  .row + .row { margin-top: 12px; }
+  .grp-title { font-size: 16px; font-weight: 700; width: 100%; margin-bottom: -4px; }
+  .f { display: flex; flex-direction: column; gap: 3px; min-width: 150px; }
+  .f.wide { min-width: 300px; }
+  .f.mid { min-width: 240px; }
+  .fl { font-size: 16px; font-weight: 600; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .fi { display: flex; align-items: center; gap: 6px; }
+  .fi .u { font-size: 16px; color: var(--ink); }
+  .fi .hint { font-size: 15px; color: var(--slate); font-family: "Geist Mono", monospace; }
+  input.num { width: 120px; font-size: 18px; padding: 5px 7px; border: 1.5px solid var(--ink); border-radius: 5px; background: var(--paper); color: var(--ink); }
+  input.num.tok { width: 130px; }
+  #rowRates input.num, #rowLc input.num { width: 82px; }
+  #rowRates .f, #rowLc .f { min-width: 0; }
+  .hero-val, .bigmiss .val, .tile .tv, .sec .big, .tot b, .bar .bv, .cbig { letter-spacing: -0.02em; }
+  input[type=range] { width: 100%; accent-color: var(--ember); margin: 2px 0 0; }
+  select { font: inherit; font-size: 18px; padding: 6px 8px; border: 1.5px solid var(--ink); border-radius: 5px; background: var(--paper); color: var(--ink); }
+  .tg { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .tg input { width: 20px; height: 20px; accent-color: var(--ink); }
+  .cbig { font-size: 30px; font-weight: 700; }
+
+  .badge { display: inline-block; font-size: 13px; font-weight: 700; padding: 1px 7px; border-radius: 999px; white-space: nowrap; line-height: 1.5; }
+  .badge.unv { border: 1.5px solid var(--ember); color: var(--ember); background: var(--paper); }
+  .badge.mine { border: 1.5px solid var(--ink); color: var(--ink); background: var(--paper); }
+  .badge.src { border: 1.5px solid var(--slate); color: var(--slate); background: var(--paper); }
+  .badge.hyp { border: 1.5px dashed var(--ink); color: var(--ink); background: var(--paper); }
+  .badge.ph { border: 1.5px solid var(--ink); color: var(--ink); background: var(--paper); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 4px 0 12px; }
+  .tabs .tl { font-size: 16px; font-weight: 700; margin-right: 4px; }
+  .tabs button { color: var(--ink); border-color: var(--ink); }
+  .tabs button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+  /* Cards */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding-bottom: 30px; }
+  .card { background: var(--mist); border-radius: 10px; padding: 14px 16px 12px; border: 3px solid transparent; display: flex; flex-direction: column; gap: 10px; }
+  .card.focus { border-color: var(--signal); }
+  .span2 { grid-column: span 2; }
+  .span3 { grid-column: 1 / -1; }
+  .ch { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .ch .n { background: var(--ink); color: var(--signal); font-family: "Geist Mono", monospace; font-weight: 700; font-size: 20px; width: 34px; height: 34px; border-radius: 6px; display: grid; place-items: center; flex: none; }
+  .ch h2 { font-size: 30px; font-weight: 700; }
+  .ch .badge { margin-left: auto; }
+  .desc { font-size: 17px; margin: -4px 0 0; }
+  .inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+  .inputs.c3 { grid-template-columns: repeat(4, 1fr); }
+  .inputs .f { min-width: 0; }
+  .inputs input.num { width: 110px; }
+  .remedy { background: var(--paper); border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .hero { background: var(--paper); border-radius: 8px; padding: 10px 14px; }
+  .hero-label { font-size: 18px; font-weight: 600; }
+  .hero-val { font-size: var(--hero); font-weight: 700; line-height: 1.05; }
+  .hero-sub { font-size: 17px; }
+  .miss { color: var(--crimson); }
+  .warmc { color: var(--circuit); }
+  .tot { display: flex; gap: 26px; flex-wrap: wrap; }
+  .tot div { display: flex; flex-direction: column; }
+  .tot span { font-size: 16px; font-weight: 600; }
+  .tot b { font-size: 30px; }
+  .tot small { font-size: 16px; font-family: "Geist", sans-serif; }
+  .api { color: var(--slate); font-size: 16px; }
+  .inc { margin-top: auto; padding-top: 4px; border-top: 1.5px solid #d6d6d0; }
+
+  /* Bars */
+  .bars { display: flex; flex-direction: column; gap: 8px; }
+  .bar { display: grid; grid-template-columns: 330px 1fr 150px; align-items: center; gap: 10px; }
+  .bar .bl { font-size: 17px; font-weight: 600; }
+  .bar .track { height: 28px; background: var(--paper); border-radius: 4px; position: relative; overflow: hidden; }
+  .bar .fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink); }
+  .bar .fill .m { position: absolute; left: 0; top: 0; bottom: 0; background: var(--crimson); }
+  .bar .bv { font-size: 24px; font-weight: 700; text-align: right; }
+  .legend { display: flex; gap: 18px; font-size: 16px; align-items: center; }
+  .sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+  table.lines { border-collapse: collapse; width: 100%; font-size: 16px; }
+  table.lines td { padding: 2px 6px; border-bottom: 1px solid #dcdcd6; }
+  table.lines td.v { text-align: right; font-family: "Geist Mono", monospace; }
+  .note { font-size: 17px; font-weight: 600; }
+
+  .dots { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .dot { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--ink); background: var(--paper); display: grid; place-items: center; font-size: 14px; font-family: "Geist Mono", monospace; font-weight: 700; }
+  .dot.w { background: var(--circuit); border-color: var(--circuit); color: var(--paper); }
+  .dot.c { background: var(--crimson); border-color: var(--crimson); color: var(--paper); }
+  .dot.p { background: var(--ember); border-color: var(--ember); color: var(--paper); }
+  .limit { width: 3px; height: 38px; background: var(--ink); position: relative; margin: 0 4px; }
+  .limit span { position: absolute; left: 50%; transform: translateX(-50%); bottom: 100%; margin-bottom: 2px; white-space: nowrap; font-size: 14px; font-weight: 700; }
+  .dots { padding-top: 20px; }
+  .sec { display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-end; }
+  .sec .big { font-size: 48px; font-weight: 700; line-height: 1; }
+
+  .stack { height: 34px; display: flex; border-radius: 5px; overflow: hidden; background: var(--paper); }
+  .stack div { height: 100%; }
+  .s6grid { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 14px; align-items: start; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tile { background: var(--paper); border-radius: 8px; padding: 10px 14px; border: 3px solid transparent; }
+  .tile.cur { border-color: var(--signal); }
+  .tile h3 { font-size: 30px; }
+  .tile .tv { font-size: 52px; font-weight: 700; line-height: 1.05; }
+  .tile.hyp { border: 3px dashed var(--slate); }
+  .tile.hyp .tv { color: var(--ink); }
+  .tile h3 .badge { vertical-align: middle; }
+  .tile .tm { font-size: 18px; }
+
+  .exit { display: none; position: fixed; bottom: 10px; right: 10px; z-index: 5; color: var(--ink); border-color: var(--ink); background: var(--paper); opacity: 0; }
+  .exit:hover, .exit:focus { opacity: 1; }
+  .recinputs { display: none; }
+  #warnings:empty { display: none; }
+
+  /* Recording mode: hide inputs, show only the big numbers of the focused scenario */
+  body.rec { --hero: 150px; }
+  body.rec .controls, body.rec .tabs, body.rec .inputs, body.rec .remedy .f, body.rec .remedy .tg,
+  body.rec .formula, body.rec .fx, body.rec .inc, body.rec .ch .badge, body.rec .btns,
+  body.rec table.lines, body.rec .formula-bar, body.rec .hideRec, body.rec .desc { display: none !important; }
+  body.rec .exit { display: block; }
+  body.rec .card { display: none; }
+  body.rec .card.focus { display: flex; grid-column: 1 / -1; border-color: transparent; background: var(--paper); padding: 10px 40px; gap: 18px; }
+  body.rec .ch h2 { font-size: 60px; }
+  body.rec .ch .n { width: 60px; height: 60px; font-size: 36px; }
+  body.rec .hero { background: var(--mist); padding: 18px 28px; }
+  body.rec .hero-label { font-size: 34px; }
+  body.rec .hero-sub { font-size: 30px; }
+  body.rec .tot b { font-size: 64px; }
+  body.rec .tot span { font-size: 28px; }
+  body.rec .tot { gap: 70px; }
+  body.rec .api { font-size: 26px; }
+  body.rec .note { font-size: 28px; }
+  body.rec .bar { grid-template-columns: 520px 1fr 240px; }
+  body.rec .bar .bl { font-size: 30px; }
+  body.rec .bar .track { height: 54px; }
+  body.rec .bar .bv { font-size: 46px; }
+  body.rec .legend { font-size: 24px; }
+  body.rec .sec .big { font-size: 96px; }
+  body.rec .sec .lab { font-size: 28px; }
+  body.rec .dot { width: 58px; height: 58px; font-size: 26px; }
+  body.rec .limit { height: 70px; width: 5px; }
+  body.rec .tile .tv { font-size: 96px; }
+  body.rec .tile h3 { font-size: 48px; }
+  body.rec .tile .tm { font-size: 28px; }
+  body.rec .stack { height: 60px; }
+  body.rec .remedy { display: none; }
+  body.rec .remedy.active { display: flex; background: var(--mist); padding: 14px 28px; }
+  body.rec .remedy.active > .fx { display: block !important; font-size: 28px; color: var(--ink); }
+  body.rec .tot small { font-size: 26px; }
+  body.rec .bars { gap: 14px; }
+  body.rec #card-s6 { --hero: 110px; }
+  body.rec .s6grid { grid-template-columns: 1.25fr 1fr 1fr; }
+  body.rec #s6-month .tot b { font-size: 56px; }
+  /* Header readable at 50% video scale */
+  body.rec .ctxline { font-size: 30px; }
+  body.rec .explain { font-size: 24px; max-width: 1300px; }
+  body.rec .bigmiss .lab, body.rec .bigmiss .sub { font-size: 26px; }
+  body.rec .kicker { font-size: 22px; }
+  body.rec .tile .badge { font-size: 22px; padding: 2px 10px; }
+  body.rec #warnings { display: block; font-size: 24px; padding-top: 8px; }
+  /* The assumptions behind the hero numbers stay on screen */
+  body.rec .recinputs { display: block; font-size: 28px; color: var(--ink); font-weight: 600; }
+  body.rec .limit span { font-size: 24px; }
+  body.rec .dots { padding-top: 34px; }
+  body.rec #card-s5 { --hero: 110px; gap: 12px; }
+  body.rec #card-s5 .sec .big { font-size: 80px; }
+  /* Scenario 4 fits 1080 px */
+  body.rec #card-s4 { --hero: 100px; gap: 10px; }
+  body.rec #card-s4 .bar .track { height: 40px; }
+  body.rec #card-s4 .bars { gap: 8px; }
+  body.rec #card-s4 .bar .bl { font-size: 26px; }
+  body.rec #card-s4 .bar .bv { font-size: 40px; }
+  body.rec #card-s4 .tot small { display: none; }
+  body.rec #card-s4 .tot b { font-size: 52px; }
+  body.rec #card-s4 .hero-sub { font-size: 26px; }
+  body.rec #card-s4 .note { font-size: 24px; }
+  body.rec #card-s4 .ch h2 { font-size: 48px; }
+  /* Per day / Per month sit beside the hero, so every card fits 1920 x 1080 */
+  body.rec .card.focus { display: grid; grid-template-columns: 1fr auto; column-gap: 40px; row-gap: 16px; align-items: start; }
+  body.rec .card.focus > * { grid-column: 1 / -1; }
+  body.rec .card.focus > .hero { grid-column: 1; }
+  body.rec .card.focus > .tot { grid-column: 2; align-self: center; flex-direction: column; gap: 14px; }
+  body.rec #card-s4.focus { row-gap: 10px; }
+  body.rec .ctxline { font-size: 28px; }
+  /* Language switch: opens the same configuration (URL hash) in the other language */
+  .top .wrap { position: relative; }
+  .lang { position: absolute; top: 6px; right: 20px; font-family: "Geist Mono", monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; line-height: 1.5; color: var(--paper); text-decoration: none; border: 1.5px solid #8a8a85; border-radius: 4px; padding: 0 6px; opacity: 0.8; }
+  .lang:hover, .lang:focus { opacity: 1; border-color: var(--paper); }
+  body.rec .lang { display: none !important; }
+  /* Polish strings are longer: buttons keep one line, a card title pushes its badge to the next line instead of wrapping */
+  .btns button { white-space: nowrap; }
+  .ch { flex-wrap: wrap; row-gap: 4px; }
+  /* Recording mode: Per day / Per month beside the hero on card 4 too (in DOM order they come after the bars), so it fits 1080 px */
+  body.rec #card-s4.focus > .tot { grid-row: 3; }
+  body.rec #card-s5.focus { row-gap: 6px; }
+  #shutoffPop { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 640px; width: calc(100% - 48px);
+    display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 12px; background: var(--crimson); color: #fff;
+    font-weight: 600; font-size: 18px; line-height: 26px; box-shadow: 0 8px 28px rgba(0,0,0,.25); }
+  #shutoffPop[hidden] { display: none; }
+  #shutoffPop p { margin: 0; flex: 1; }
+  #shutoffPop button { flex: none; border: 2px solid #fff; background: transparent; color: #fff; font: inherit; padding: 6px 16px; border-radius: 999px; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div>
+      <div class="kicker">Gadomski.DEV · Odcinek 09 · stan na 2026-10-28</div>
+      <h1>Symulator TTL (czasu życia) prompt cache</h1>
+      <div class="ctxline" id="ctxline"></div>
+      <div class="explain" id="explain"></div>
+    </div>
+    <div style="display:flex; gap:28px; align-items:center;">
+      <div class="bigmiss">
+        <div class="lab">Dopłata za powrót po wygaśnięciu&nbsp;cache</div>
+        <div class="val" id="heroMiss">0&nbsp;$</div>
+        <div class="sub" id="heroMissSub"></div>
+      </div>
+      <div class="btns">
+        <button id="btnRec" type="button" title="Skrót: R. Klawisze 1–7 zmieniają scenariusz, Esc wychodzi.">Tryb nagrywania</button>
+        <button id="btnReset" type="button">Przywróć domyślne</button>
+      </div>
+    </div>
+    <a class="lang" id="langSwitch" href="index.html" hreflang="en" title="Wersja angielska">EN</a>
+  </div>
+</header>
+<button class="exit" id="btnExit" type="button">Wyjdź z trybu nagrywania (Esc)</button>
+
+<main class="wrap">
+  <div class="warn" id="warnings"></div>
+  <div class="formula-bar">
+    <div class="formula" id="coreFormula"></div>
+  </div>
+
+  <section class="controls" aria-label="Ustawienia globalne">
+    <div class="row" id="rowGlobal"></div>
+    <div class="row" id="rowRates"></div>
+    <div class="row" id="rowLc"></div>
+  </section>
+
+  <nav class="tabs" id="tabs"><span class="tl">Na wizji:</span></nav>
+
+  <div class="grid">
+    <section class="card" data-scn="s1" id="card-s1">
+      <div class="ch"><span class="n">1</span><h2>Przerwa</h2><span class="badge ph" data-ph="s1"></span></div>
+      <div class="recinputs" id="s1-rec"></div>
+      <p class="desc">Wychodzisz na N minut, k razy dziennie. Pod twoją nieobecność nic nie dotyka prefiksu.</p>
+      <div class="inputs" data-fields="s1.minutes,s1.perDay"></div>
+      <div class="remedy"><div data-fields="s1.poll"></div><div class="inputs" data-fields="s1.pollEvery"></div><div class="fx" id="s1-remedy"></div></div>
+      <div class="hero"><div class="hero-label" id="s1-hl"></div><div class="hero-val" id="s1-hv"></div><div class="hero-sub" id="s1-hs"></div></div>
+      <div class="tot" id="s1-tot"></div>
+      <div class="fx" id="s1-fx"></div>
+      <div class="inc" data-fields="s1.inc"></div>
+    </section>
+
+    <section class="card" data-scn="s2" id="card-s2">
+      <div class="ch"><span class="n">2</span><h2>Czytanie odpowiedzi</h2><span class="badge ph" data-ph="s2"></span></div>
+      <div class="recinputs" id="s2-rec"></div>
+      <p class="desc">Czytasz odpowiedź agenta przez N minut, zanim odpiszesz, k razy dziennie. Czytanie nic nie kosztuje, płaci odpowiedź.</p>
+      <div class="inputs" data-fields="s2.minutes,s2.perDay"></div>
+      <div class="hero"><div class="hero-label" id="s2-hl"></div><div class="hero-val" id="s2-hv"></div><div class="hero-sub" id="s2-hs"></div></div>
+      <div class="tot" id="s2-tot"></div>
+      <div class="fx" id="s2-fx"></div>
+      <div class="inc" data-fields="s2.inc"></div>
+    </section>
+
+    <section class="card" data-scn="s3" id="card-s3">
+      <div class="ch"><span class="n">3</span><h2>Długie wywołanie narzędzia</h2><span class="badge ph" data-ph="s3"></span></div>
+      <div class="recinputs" id="s3-rec"></div>
+      <p class="desc">Testy albo build trwają N minut, k razy dziennie. Agent czeka i nie wysyła żadnego zapytania.</p>
+      <div class="inputs" data-fields="s3.minutes,s3.perDay"></div>
+      <div class="remedy"><div data-fields="s3.poll"></div><div class="inputs" data-fields="s3.pollEvery"></div><div class="bars" id="s3-bars"></div><div class="fx" id="s3-remedy"></div></div>
+      <div class="hero"><div class="hero-label" id="s3-hl"></div><div class="hero-val" id="s3-hv"></div><div class="hero-sub" id="s3-hs"></div></div>
+      <div class="tot" id="s3-tot"></div>
+      <div class="fx" id="s3-fx"></div>
+      <div class="inc" data-fields="s3.inc"></div>
+    </section>
+
+    <section class="card span2" data-scn="s4" id="card-s4">
+      <div class="ch"><span class="n">4</span><h2>Orkiestrator czeka na subagentów</h2><span class="badge ph" data-ph="s4"></span></div>
+      <div class="recinputs" id="s4-rec"></div>
+      <p class="desc">W fal po S równoległych subagentów, każdy pracuje D minut. Kto trzyma duży kontekst, gdy nic się nie dzieje?</p>
+      <div class="inputs c3" data-fields="s4.co,s4.waves,s4.subs,s4.dur,s4.cs,s4.wait,s4.h,s4.problems,s4.problemMin,s4.runs,s4.layout"></div>
+      <div class="hero"><div class="hero-label" id="s4-hl"></div><div class="hero-val" id="s4-hv"></div><div class="hero-sub" id="s4-hs"></div></div>
+      <div class="legend"><span><span class="sw" style="background:var(--crimson)"></span>ponowne zapisy cache (missy)</span><span><span class="sw" style="background:var(--ink)"></span>ciepłe odczyty i nowe zapisy (plik przekazania, dopłata za dłuższy TTL)</span></div>
+      <div class="bars" id="s4-bars"></div>
+      <div class="note" id="s4-note"></div>
+      <table class="lines" id="s4-lines"></table>
+      <div class="tot" id="s4-tot"></div>
+      <div class="fx" id="s4-fx"></div>
+      <div class="inc" data-fields="s4.inc"></div>
+    </section>
+
+    <section class="card" data-scn="s5" id="card-s5">
+      <div class="ch"><span class="n">5</span><h2>Równoległe agenty w worktree</h2><span class="badge ph" data-ph="s5"></span></div>
+      <div class="recinputs" id="s5-rec"></div>
+      <p class="desc">N agentów, z każdym po R minut, po kolei. Każdy agent czeka na ciebie (N − 1) × R minut.</p>
+      <div class="inputs" data-fields="s5.n,s5.r,s5.ca,s5.hours"></div>
+      <div class="hero"><div class="hero-label" id="s5-hl"></div><div class="hero-val" id="s5-hv"></div><div class="hero-sub" id="s5-hs"></div></div>
+      <div class="tot" id="s5-tot"></div>
+      <div class="sec"><div><div class="lab hero-label" id="s5-maxn-l">Najwięcej agentów bez wygaśnięcia cache</div><div class="big" id="s5-maxn"></div></div><div><div class="lab hero-label">Każdy agent czeka</div><div class="big" id="s5-gap"></div></div></div>
+      <div class="dots" id="s5-dots"></div>
+      <div class="legend" id="s5-legend"></div>
+      <div class="fx" id="s5-fx"></div>
+      <div class="inc" data-fields="s5.inc"></div>
+    </section>
+
+    <section class="card span3" data-scn="s6" id="card-s6">
+      <div class="ch"><span class="n">6</span><h2>Budżet miesięczny</h2><span class="badge ph" data-ph="s6"></span></div>
+      <div class="recinputs" id="s6-rec"></div>
+      <p class="desc">Twój zwykły ruch agentów przy ciepłym cache plus ponowne zapisy każdego scenariusza z zaznaczonym „Wlicz do mojego dnia”.</p>
+      <div class="inputs c3" data-fields="s6.requests,s6.avgPct,s6.newTok,s6.outTok"></div>
+      <div class="s6grid">
+        <div class="hero"><div class="hero-label" id="s6-hl"></div><div class="hero-val" id="s6-hv"></div><div class="hero-sub" id="s6-hs"></div></div>
+        <div class="hero"><div class="hero-label">Udział ponownych zapisów cache w wydatkach</div><div class="hero-val miss" id="s6-share"></div><div class="stack" id="s6-stack"></div><div class="hero-sub" id="s6-sharesub"></div></div>
+        <div class="hero"><div class="hero-label">Miesięcznie</div><div id="s6-month"></div></div>
+      </div>
+      <table class="lines" id="s6-lines"></table>
+      <div class="fx" id="s6-fx"></div>
+      <div class="note hideRec" style="font-weight:500">Poza modelem: kredyty w cenie planu (Copilot Pro 1&nbsp;500 / Pro+ 7&nbsp;000 / Max 20&nbsp;000 miesięcznie), tryb fast w Cursorze (2× każda cena), +10% w Cursorze za region lub inferencję tylko w USA oraz zużycie ponad 5-godzinny limit abonamentu Claude.</div>
+    </section>
+
+    <section class="card span3" data-scn="strip" id="card-strip">
+      <div class="ch"><span class="n">7</span><h2>Porównanie TTL</h2><span class="badge ph" data-ph="strip"></span></div>
+      <div class="recinputs" id="strip-rec"></div>
+      <p class="desc">Ten sam dzień (scenariusze z „Wlicz do mojego dnia”, bez rozwiązań z kart) przy każdym czasie życia cache, plus agent, który pinguje, żeby cache nie wygasł. Koszt ponownych zapisów dziennie. Kafelki z przerywaną ramką to czasy życia, których twoje narzędzie lub model nie oferuje.</p>
+      <div class="inputs c3" data-fields="strip.heartbeat"></div>
+      <div class="tiles" id="strip-tiles"></div>
+      <div class="fx" id="strip-fx"></div>
+    </section>
+  </div>
+</main>
+
+<script src="model.js"></script>
+<script src="model.pl.js"></script>
+<script>
+(function () {
+  'use strict';
+  var M = window.CacheModel;
+
+  // ------------------------------------------------------------------ field specs
+  var TOK = { unit: 'tokenów', min: 0, max: 1000000, step: 10000, slider: true, tok: true };
+  var F = {
+    'g.profile': { label: 'Narzędzie i rozliczenie', type: 'select', cls: 'wide' },
+    'g.model': { label: 'Model', type: 'select', cls: 'mid' },
+    'g.window': { label: 'Okno kontekstu', unit: 'tokenów', min: 0, max: 2000000, step: 1000, tok: true },
+    'g.useAbs': { label: 'Podaj C w tokenach', type: 'toggle' },
+    'g.fillPct': { label: 'Wypełnienie kontekstu', unit: '%', min: 0, max: 100, step: 1, slider: true, cls: 'mid' },
+    'g.absTokens': Object.assign({}, TOK, { label: 'Kontekst C', max: 2000000, cls: 'mid' }),
+    'g.days': { label: 'Dni robocze w miesiącu', unit: 'dni', min: 1, max: 31, step: 1, slider: true },
+    'g.budget': { label: 'Budżet miesięczny', unit: 'USD', min: 0, max: 3000, step: 10, slider: true },
+    'g.pollOut': { label: 'Output pinga', unit: 'tokenów', min: 0, max: 5000, step: 10 },
+    'g.pollIn': { label: 'Nowy input pinga', unit: 'tokenów', min: 0, max: 5000, step: 10 },
+    'g.genMin': { label: 'Czas generowania na turę', unit: 'min', min: 0, max: 5, step: 0.25 },
+    'g.gptHit': { label: 'Trafienia GPT, odstęp 5 min – TTL', unit: '%', min: 0, max: 100, step: 1 },
+    'r.input': { label: 'Input', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.output': { label: 'Output', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.read': { label: 'Odczyt cache', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.writeMain': { label: 'Zapis cache, główna rozmowa', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.writeSub': { label: 'Zapis cache, subagenci', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.write5m': { label: 'Zapis 5 min (porównanie TTL)', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.write1h': { label: 'Zapis 1 h (porównanie TTL)', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.ttlMain': { label: 'TTL, główna rozmowa', unit: 'min', min: 0, step: 1 },
+    'r.ttlSub': { label: 'TTL, subagenci', unit: 'min', min: 0, step: 1 },
+    'r.usdPerCredit': { label: 'USD za kredyt AI', unit: '$', min: 0, step: 0.001 },
+    'r.lcThreshold': { label: 'Długi kontekst powyżej', unit: 'tokenów', min: 0, step: 1000, tok: true },
+    'r.lcInput': { label: 'DK input', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.lcOutput': { label: 'DK output', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.lcRead': { label: 'DK odczyt cache', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.lcWriteMain': { label: 'DK zapis, główna rozmowa', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.lcWriteSub': { label: 'DK zapis, subagenci', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.lcWrite5m': { label: 'DK zapis 5 min', unit: '$/MTok', min: 0, step: 0.01 },
+    'r.lcWrite1h': { label: 'DK zapis 1 h', unit: '$/MTok', min: 0, step: 0.01 },
+
+    's1.minutes': { label: 'Długość przerwy N', unit: 'min', min: 0, max: 120, step: 1, slider: true },
+    's1.perDay': { label: 'Przerwy dziennie k', unit: 'dziennie', min: 0, max: 20, step: 1, slider: true },
+    's1.poll': { label: 'Rozwiązanie: zapowiedz przerwę, agent pinguje co P minut', type: 'toggle' },
+    's1.pollEvery': { label: 'Ping co P', unit: 'min', min: 0.5, max: 10, step: 0.5, slider: true },
+    's1.inc': { label: 'Wlicz do mojego dnia', type: 'toggle' },
+    's2.minutes': { label: 'Czas czytania N', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's2.perDay': { label: 'Odpowiedzi po czytaniu k', unit: 'dziennie', min: 0, max: 40, step: 1, slider: true },
+    's2.inc': { label: 'Wlicz do mojego dnia', type: 'toggle' },
+    's3.minutes': { label: 'Czas testów lub buildu N', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's3.perDay': { label: 'Uruchomienia dziennie k', unit: 'dziennie', min: 0, max: 30, step: 1, slider: true },
+    's3.poll': { label: 'Rozwiązanie: uruchom w tle, agent pinguje co P minut', type: 'toggle' },
+    's3.pollEvery': { label: 'Ping co P', unit: 'min', min: 0.5, max: 10, step: 0.5, slider: true },
+    's3.inc': { label: 'Wlicz do mojego dnia', type: 'toggle' },
+    's4.co': Object.assign({}, TOK, { label: 'Kontekst orkiestratora C_o' }),
+    's4.waves': { label: 'Fale W', unit: '', min: 1, max: 10, step: 1, slider: true },
+    's4.subs': { label: 'Subagenci na falę S', unit: '', min: 1, max: 16, step: 1, slider: true },
+    's4.dur': { label: 'Czas pracy subagenta D', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's4.cs': Object.assign({}, TOK, { label: 'Kontekst subagenta C_s' }),
+    's4.wait': { label: 'Czekanie na narzędzie w zadaniu', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's4.h': Object.assign({}, TOK, { label: 'Plik przekazania H', max: 300000, step: 5000 }),
+    's4.problems': { label: 'Problemy na przebieg', unit: '', min: 0, max: 10, step: 1, slider: true },
+    's4.problemMin': { label: 'Rozmowa z gumową kaczką', unit: 'min', min: 0, max: 60, step: 1, slider: true },
+    's4.runs': { label: 'Przebiegi dziennie', unit: '', min: 0, max: 10, step: 1, slider: true },
+    's4.layout': { label: 'Układ w moim dniu', type: 'select', options: [['hub', 'LLM hub-and-spoke'], ['sequential', 'Jeden agent sekwencyjnie'], ['code', 'Orkiestracja w kodzie']] },
+    's4.inc': { label: 'Wlicz do mojego dnia', type: 'toggle' },
+    's5.n': { label: 'Agenty N', unit: '', min: 1, max: 12, step: 1, slider: true },
+    's5.r': { label: 'Minuty z każdym R', unit: 'min', min: 0.5, max: 30, step: 0.5, slider: true },
+    's5.ca': Object.assign({}, TOK, { label: 'Kontekst na agenta' }),
+    's5.hours': { label: 'Godziny dziennie', unit: 'h', min: 0, max: 10, step: 0.5, slider: true },
+    's5.inc': { label: 'Wlicz do mojego dnia', type: 'toggle' },
+    's6.requests': { label: 'Zapytania do modelu dziennie', unit: '', min: 0, max: 3000, step: 10, slider: true },
+    's6.avgPct': { label: 'Średni prefiks, % z C', unit: '%', min: 0, max: 100, step: 1, slider: true },
+    's6.newTok': { label: 'Nowy input na zapytanie', unit: 'tokenów', min: 0, max: 30000, step: 100, slider: true },
+    's6.outTok': { label: 'Output na zapytanie', unit: 'tokenów', min: 0, max: 20000, step: 100, slider: true },
+    'strip.heartbeat': { label: 'Ping agenta (keep-alive) co', unit: 'min', min: 0.5, max: 10, step: 0.5, slider: true }
+  };
+  var CARD_KEYS = {
+    s1: ['s1.minutes', 's1.perDay', 's1.poll', 's1.pollEvery'], s2: ['s2.minutes', 's2.perDay'],
+    s3: ['s3.minutes', 's3.perDay', 's3.poll', 's3.pollEvery'],
+    s4: ['s4.co', 's4.waves', 's4.subs', 's4.dur', 's4.cs', 's4.wait', 's4.h', 's4.problems', 's4.problemMin', 's4.runs', 's4.layout'],
+    s5: ['s5.n', 's5.r', 's5.ca', 's5.hours'], s6: ['s6.requests', 's6.avgPct', 's6.newTok', 's6.outTok', 'g.budget', 'g.days'],
+    strip: ['strip.heartbeat']
+  };
+  var RATE_KEYS = ['r.input', 'r.output', 'r.read', 'r.writeMain', 'r.writeSub', 'r.write5m', 'r.write1h', 'r.ttlMain', 'r.ttlSub', 'r.usdPerCredit', 'g.gptHit', 'g.pollOut', 'g.pollIn'];
+  var LC_KEYS = ['r.lcThreshold', 'r.lcInput', 'r.lcOutput', 'r.lcRead', 'r.lcWriteMain', 'r.lcWriteSub', 'r.lcWrite5m', 'r.lcWrite1h'];
+  // Usage-level inputs with their own badge (assumptions and community measurements, not vendor facts)
+  var ASSUMPTION_BADGES = {
+    'g.pollOut': { kind: 'unv', text: 'założenie – popraw', src: 'pollOutputTokens' },
+    'g.pollIn': { kind: 'unv', text: 'założenie – popraw', src: 'pollNewInputTokens' },
+    'g.genMin': { kind: 'unv', text: 'założenie – popraw', src: 'generationMinutes' },
+    'g.gptHit': { kind: 'src', text: 'pomiar społeczności', src: 'gptHitPct' }
+  };
+  // Polish plural forms: [1, 2-4, 5+, fraction] (see CacheModel.PL.fmt.plural)
+  var KREDYT = ['kredyt', 'kredyty', 'kredytów', 'kredytu'];
+  var DZIEN = ['dzień', 'dni', 'dni', 'dnia'];
+  var DZIEN_ROB = ['dzień roboczy', 'dni robocze', 'dni roboczych', 'dnia roboczego'];
+  var PING = ['ping', 'pingi', 'pingów', 'pinga'];
+  var ZIMNY_PING = ['zimny ping', 'zimne pingi', 'zimnych pingów', 'zimnego pinga'];
+  var PRZEBIEG = ['przebieg', 'przebiegi', 'przebiegów', 'przebiegu'];
+  var ZAPYTANIE = ['zapytanie', 'zapytania', 'zapytań', 'zapytania'];
+  var POWROT = ['powrót', 'powroty', 'powrotów', 'powrotu'];
+  var SUBAGENT = ['subagent', 'subagentów', 'subagentów', 'subagenta'];
+  // Compact "label value unit" text per card for recording mode
+  var REC = {
+    's1.minutes': function (v) { return 'Przerwa ' + nv(v) + NB + 'min'; },
+    's1.perDay': function (v) { return (+v === 1 ? '1 raz' : nv(v) + ' razy') + ' dziennie'; },
+    's1.pollEvery': function (v) { return st['s1.poll'] ? 'agent pinguje co ' + nv(v) + NB + 'min' : null; },
+    's2.minutes': function (v) { return 'Czytanie ' + nv(v) + NB + 'min'; },
+    's2.perDay': function (v) { return cnt(v, ['odpowiedź', 'odpowiedzi', 'odpowiedzi', 'odpowiedzi']) + ' dziennie'; },
+    's3.minutes': function (v) { return 'Testy ' + nv(v) + NB + 'min'; },
+    's3.perDay': function (v) { return cnt(v, ['uruchomienie', 'uruchomienia', 'uruchomień', 'uruchomienia']) + ' dziennie'; },
+    's3.pollEvery': function (v) { return st['s3.poll'] ? 'w tle, ping co ' + nv(v) + NB + 'min' : null; },
+    's4.co': function (v) { return 'C_o ' + fmtK(v); },
+    's4.waves': function (v) { return cnt(v, ['fala', 'fale', 'fal', 'fali']) + ' × ' + cnt(st['s4.subs'], SUBAGENT) + ' po ' + fmtK(st['s4.cs']); },
+    's4.dur': function (v) { return nv(v) + NB + 'min każdy'; },
+    's4.wait': function (v) { return 'czekanie na narzędzie ' + nv(v) + NB + 'min'; },
+    's4.problems': function (v) { return cnt(v, ['problem', 'problemy', 'problemów', 'problemu']) + ', ' + nv(st['s4.problemMin']) + NB + 'min z kaczką, plik przekazania ' + fmtK(st['s4.h']); },
+    's4.runs': function (v) { return cnt(v, PRZEBIEG) + ' dziennie'; },
+    's5.n': function (v) { return cnt(v, ['agent', 'agenty', 'agentów', 'agenta']); },
+    's5.r': function (v) { return nv(v) + NB + 'min z każdym'; },
+    's5.ca': function (v) { return fmtK(v) + ' kontekstu na agenta'; },
+    's5.hours': function (v) { return nv(v) + ' h dziennie'; },
+    's6.requests': function (v) { return cnt(v, ZAPYTANIE) + ' dziennie'; },
+    's6.avgPct': function (v) { return 'średni prefiks ' + nv(v) + '% z C'; },
+    's6.newTok': function (v) { return fmtK(v) + ' input + ' + fmtK(st['s6.outTok']) + ' output na zapytanie'; },
+    'g.budget': function (v) { return 'budżet ' + fmtNum(v, 0) + NB + '$'; },
+    'strip.heartbeat': function (v) { return 'ping agenta co ' + nv(v) + NB + 'min'; }
+  };
+  var REC_TAIL = { s1: 'days', s2: 'days', s3: 'days', s4: 'days', s5: 'days', s6: 'days', strip: 'days' };
+
+  var st;
+  var ctl = {}; // key -> { number, range, check, select, badge, wrap }
+
+  // ------------------------------------------------------------------ formatting (Polish; shared helpers in model.pl.js)
+  var PLF = M.PL.fmt, NB = PLF.NB;
+  /** "1,92 $", "14,40 $", "2 101 $": decimal comma, non-breaking spaces, currency after the number. */
+  function fmtUsd(x) { return PLF.usd(x); }
+  /**
+   * Parse what a person types: "3,5", "3.5", "400 000", "400K", "1,5M". A comma is a decimal comma,
+   * so "0,125" is 0.125. Only in token fields does "400,000" (comma before exactly three digits) mean thousands.
+   */
+  function parseNum(str, tok) {
+    var t = String(str).replace(/[\s_]/g, '');
+    var mult = 1;
+    var m = /^(.*?)([kKmM])$/.exec(t);
+    if (m) { t = m[1]; mult = /[kK]/.test(m[2]) ? 1e3 : 1e6; }
+    var grouped = /^-?\d{1,3}(,\d{3})+(\.\d+)?$/.test(t) && !/^-?0,/.test(t);
+    if (grouped && (tok || t.indexOf('.') >= 0)) t = t.replace(/,/g, '');
+    else if ((t.match(/,/g) || []).length === 1 && t.indexOf('.') < 0) t = t.replace(',', '.');
+    if (!/^-?(\d+\.?\d*|\.\d+)$/.test(t)) return NaN;
+    return Math.round(parseFloat(t) * mult * 1e6) / 1e6;
+  }
+  /** Value shown in an input box: decimal comma, no grouping, so parseNum reads it back unchanged. */
+  function inVal(v) { return v == null ? '' : String(v).replace('.', ','); }
+  function fmtCr(x) { return PLF.num(Math.round(x), 0, 0); }
+  function fmtTok(x) { return PLF.num(Math.round(x), 0, 0); }
+  function fmtK(x) {
+    if (x >= 1e6) return PLF.num(Math.round(x / 1e4) / 100) + 'M';
+    return x >= 1000 ? PLF.num(Math.round(x / 100) / 10) + 'K' : String(Math.round(x));
+  }
+  function fmtNum(x, d) { return PLF.num(Math.round(x * Math.pow(10, d || 0)) / Math.pow(10, d || 0)); }
+  /** A raw state value (minutes, counts) in Polish format: 3.5 -> "3,5". */
+  function nv(x) { return PLF.num(+x); }
+  function p(x) { return PLF.num(+x, 2, 4) + NB + '$'; }
+  /** Number with its Polish noun: cnt(4, PING) = "4 pingi", cnt(22.46, PING, 1) = "22,5 pinga". */
+  function cnt(x, forms, d) {
+    var r = d == null ? +x : Math.round(x * Math.pow(10, d)) / Math.pow(10, d);
+    return PLF.num(r) + NB + PLF.plural(r, forms);
+  }
+  /** "192 kredyty AI", "1 440 kredytów AI" */
+  function credits(x, ai) { var r = Math.round(x); return fmtCr(r) + NB + PLF.plural(r, KREDYT) + (ai ? NB + 'AI' : ''); }
+
+  // ------------------------------------------------------------------ DOM helpers
+  function el(tag, attrs, kids) {
+    var e = document.createElement(tag);
+    if (attrs) Object.keys(attrs).forEach(function (k) {
+      if (k === 'class') e.className = attrs[k];
+      else if (k === 'text') e.textContent = attrs[k];
+      else e.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) e.appendChild(typeof c === 'string' ? document.createTextNode(c) : c); });
+    return e;
+  }
+  function $(id) { return document.getElementById(id); }
+  function setHTML(id, html) { var e = $(id); if (e) e.innerHTML = html; }
+
+  function buildField(key) {
+    var spec = F[key];
+    var c = { spec: spec };
+    var wrap;
+    if (spec.type === 'toggle') {
+      c.check = el('input', { type: 'checkbox' });
+      c.check.addEventListener('change', function () { st[key] = c.check.checked; changed(key); });
+      wrap = el('label', { class: 'tg' }, [c.check, el('span', { text: spec.label })]);
+    } else if (spec.type === 'select') {
+      c.select = el('select');
+      (spec.options || []).forEach(function (o) { c.select.appendChild(el('option', { value: o[0], text: o[1] })); });
+      c.select.addEventListener('change', function () { onSelect(key, c.select.value); });
+      c.badge = el('span');
+      wrap = el('label', { class: 'f ' + (spec.cls || '') }, [el('span', { class: 'fl' }, [spec.label, c.badge]), c.select]);
+    } else {
+      c.number = el('input', { type: 'text', inputmode: 'decimal', class: 'num' + (spec.tok ? ' tok' : ''), autocomplete: 'off' });
+      c.number.addEventListener('input', function () {
+        if (c.number.value === '') return;
+        var v = parseNum(c.number.value, spec.tok);
+        if (!isFinite(v)) return;
+        st[key] = v;
+        if (c.range) c.range.value = v;
+        if (c.hint) c.hint.textContent = '= ' + fmtK(v);
+        changed(key);
+      });
+      c.badge = el('span');
+      if (spec.tok) c.hint = el('span', { class: 'hint' });
+      var kids = [el('span', { class: 'fl' }, [spec.label, c.badge]), el('span', { class: 'fi' }, [c.number, spec.unit ? el('span', { class: 'u', text: spec.unit }) : null, c.hint || null])];
+      if (spec.slider) {
+        c.range = el('input', { type: 'range', min: spec.min, max: spec.max, step: spec.step });
+        c.range.addEventListener('input', function () {
+          var v = parseFloat(c.range.value);
+          st[key] = v; c.number.value = inVal(v);
+          if (c.hint) c.hint.textContent = '= ' + fmtK(v);
+          changed(key);
+        });
+        kids.push(c.range);
+      }
+      wrap = el('label', { class: 'f ' + (spec.cls || '') }, kids);
+    }
+    c.wrap = wrap;
+    ctl[key] = c;
+    return wrap;
+  }
+
+  function syncInputs() {
+    Object.keys(ctl).forEach(function (k) {
+      var c = ctl[k], v = st[k];
+      if (c.check) c.check.checked = !!v;
+      else if (c.select) { if (k !== 'g.profile' && k !== 'g.model') c.select.value = v; }
+      else if (c.number) {
+        if (document.activeElement !== c.number) c.number.value = inVal(v);
+        if (c.range) c.range.value = v == null ? 0 : v;
+        if (c.hint) c.hint.textContent = v == null || v === '' ? '' : '= ' + fmtK(+v);
+      }
+    });
+    fillModelSelect();
+    ctl['g.profile'].select.value = st['g.profile'];
+    ctl['g.model'].select.value = st['g.model'];
+  }
+
+  function fillModelSelect() {
+    var sel = ctl['g.model'].select;
+    var allowed = M.allowedModels(st['g.profile']);
+    var want = allowed.map(function (m) { return m.id; }).join(',');
+    if (sel.dataset.list !== want) {
+      sel.innerHTML = '';
+      allowed.forEach(function (m) { sel.appendChild(el('option', { value: m.id, text: m.label })); });
+      sel.dataset.list = want;
+    }
+  }
+
+  function onSelect(key, value) {
+    if (key === 'g.profile' || key === 'g.model') {
+      var profile = key === 'g.profile' ? value : st['g.profile'];
+      var model = key === 'g.model' ? value : st['g.model'];
+      if (!M.allowedModels(profile).some(function (m) { return m.id === model; })) model = M.defaultModelFor(profile);
+      var oldPreset = M.presetFields(st['g.profile'], st['g.model']);
+      var keepWindow = st['g.window'] !== oldPreset['g.window'] ? st['g.window'] : null;
+      var pf = M.presetFields(profile, model);
+      st['g.profile'] = profile; st['g.model'] = model;
+      Object.keys(pf).forEach(function (k) { st[k] = pf[k]; });
+      // A context window the user typed survives a tool or billing switch, so a comparison keeps the same C.
+      if (keepWindow != null) st['g.window'] = keepWindow;
+      syncInputs();
+      changed(key);
+      return;
+    }
+    st[key] = value;
+    changed(key);
+  }
+
+  // ------------------------------------------------------------------ build
+  function build() {
+    var g = $('rowGlobal');
+    ['g.profile', 'g.model', 'g.window', 'g.fillPct', 'g.absTokens'].forEach(function (k) { g.appendChild(buildField(k)); });
+    var cbox = el('div', { class: 'f' }, [el('span', { class: 'fl', text: 'Prefiks w cache C' }), el('span', { class: 'cbig', id: 'cval' }), buildField('g.useAbs')]);
+    g.appendChild(cbox);
+    ['g.days', 'g.budget', 'g.genMin'].forEach(function (k) { g.appendChild(buildField(k)); });
+    g.appendChild(el('span', { class: 'badge ph', 'data-ph': 'global' }));
+    M.PROFILES.forEach(function (pr) { ctl['g.profile'].select.appendChild(el('option', { value: pr.id, text: pr.short })); });
+
+    var r = $('rowRates');
+    r.appendChild(el('div', { class: 'grp-title', text: 'Ceny (USD za milion tokenów) i czas życia cache: wartości z research/constants.json, każde pole można zmienić' }));
+    RATE_KEYS.forEach(function (k) { r.appendChild(buildField(k)); });
+    var lc = $('rowLc');
+    lc.appendChild(el('div', { class: 'grp-title', text: 'Stawki długiego kontekstu (DK): gdy zapytanie przekracza próg' }));
+    LC_KEYS.forEach(function (k) { lc.appendChild(buildField(k)); });
+
+    document.querySelectorAll('[data-fields]').forEach(function (box) {
+      box.getAttribute('data-fields').split(',').forEach(function (k) { box.appendChild(buildField(k)); });
+    });
+
+    var tabs = $('tabs');
+    M.SCENARIOS.forEach(function (s, i) {
+      var b = el('button', { type: 'button', 'data-scn': s.id, text: (i + 1) + ' ' + s.name });
+      b.addEventListener('click', function () { st['ui.focus'] = s.id; changed('ui.focus'); });
+      tabs.appendChild(b);
+    });
+    document.querySelectorAll('.card .ch').forEach(function (h) {
+      h.addEventListener('click', function () { st['ui.focus'] = h.parentNode.getAttribute('data-scn'); changed('ui.focus'); });
+    });
+
+    function toggleRec(on) {
+      st['ui.rec'] = on; changed('ui.rec');
+      if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+      if (on) window.scrollTo(0, 0);
+    }
+    $('btnRec').addEventListener('click', function () { toggleRec(!st['ui.rec']); });
+    $('btnExit').addEventListener('click', function () { toggleRec(false); });
+    $('btnReset').addEventListener('click', function () { st = M.defaultState(); syncInputs(); changed('reset'); });
+    document.addEventListener('keydown', function (e) {
+      var t = e.target && e.target.tagName;
+      // Only typing fields swallow keys; sliders, checkboxes and buttons let the shortcuts through. Esc always works.
+      if ((t === 'INPUT' && e.target.type === 'text') || t === 'SELECT' || t === 'TEXTAREA') {
+        if (e.key !== 'Escape') return;
+        e.target.blur();
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'r' || e.key === 'R') { toggleRec(!st['ui.rec']); }
+      else if (e.key === 'Escape') { if (st['ui.rec']) toggleRec(false); }
+      else if (/^[1-7]$/.test(e.key)) { st['ui.focus'] = M.SCENARIOS[+e.key - 1].id; changed('ui.focus'); }
+    });
+    window.addEventListener('hashchange', function () {
+      if (location.hash.replace(/^#/, '') === M.encodeState(st)) return;
+      st = M.decodeState(location.hash); syncInputs(); render();
+    });
+  }
+
+  function changed() {
+    try { history.replaceState(null, '', '#' + M.encodeState(st)); } catch (e) { /* file:// in some browsers */ }
+    render();
+  }
+
+  // ------------------------------------------------------------------ render helpers
+  var R; // computed results
+  // On the subscription every amount is API-equivalent: shown as the main number, coloured by misses,
+  // and labelled, because misses still burn the 5-hour limit (Krystian's simplification: marginal $0 inside it).
+  function money(x) { return fmtUsd(x); }
+  function moneySub(x) {
+    if (R.subscription) return '<span class="api">ekwiwalent API: w 5-godzinnym limicie dopłacasz 0' + NB + '$, ale zużywasz limit</span>';
+    if (R.rates.usdPerCredit) return credits(x / R.rates.usdPerCredit, true);
+    return '';
+  }
+  function cls(x) { return x <= 1e-12 ? 'warmc' : 'miss'; }
+  function totals(id, day, month, extraLabel, colour) {
+    var cd = colour != null ? colour : cls(day), cm = colour != null ? colour : cls(month);
+    function small(v) {
+      if (R.subscription) return '<small class="api">ekwiwalent API</small>';
+      return R.rates.usdPerCredit ? '<small>' + credits(v / R.rates.usdPerCredit) + '</small>' : '';
+    }
+    var h = '<div><span>Dziennie</span><b class="' + cd + '">' + money(day) + '</b>' + small(day) + '</div>' +
+      '<div><span>Miesięcznie (' + cnt(R.days, DZIEN) + ')</span><b class="' + cm + '">' + money(month) + '</b>' + small(month) + '</div>';
+    if (extraLabel) h += '<div><span>&nbsp;</span><small>' + extraLabel + '</small></div>';
+    setHTML(id, h);
+  }
+  function hero(prefix, label, value, sub, colourOverride) {
+    setHTML(prefix + '-hl', label);
+    var v = $(prefix + '-hv');
+    v.textContent = money(value);
+    v.className = 'hero-val ' + (colourOverride || cls(value));
+    var s = moneySub(value);
+    setHTML(prefix + '-hs', [sub, s].filter(Boolean).join('<br>'));
+  }
+  function badge(span, status) {
+    if (!span) return;
+    if (!status) { span.className = ''; span.textContent = ''; span.removeAttribute('title'); return; }
+    span.className = 'badge ' + status.kind;
+    span.textContent = status.text;
+    if (status.title) span.title = status.title; else span.removeAttribute('title');
+  }
+  function pct(x) { return fmtNum(x * 100, 0) + '%'; }
+  function genTxt() { return R.rates.genMin > 0 ? ' (' + fmtNum(R.rates.genMin, 2) + NB + 'min generowania + bezczynność)' : ''; }
+
+  function renderRecInputs(id) {
+    var parts = [];
+    (CARD_KEYS[id] || []).forEach(function (k) {
+      var f = REC[k];
+      if (!f) return;
+      var t = f(st[k]);
+      if (t) parts.push(t);
+    });
+    if (id === 's6') parts.push(cnt(R.days, DZIEN_ROB));
+    else if (REC_TAIL[id]) parts.push(cnt(R.days, DZIEN_ROB));
+    if (id !== 's6' && R.rates.genMin > 0) parts.push('+ ' + fmtNum(R.rates.genMin, 2) + NB + 'min generowania na turę');
+    if (id === 's4' && st['s4.layout'] !== 'hub') parts.push('mój dzień: ' + { sequential: 'sekwencyjnie', code: 'orkiestracja w kodzie' }[st['s4.layout']]);
+    setHTML(id + '-rec', parts.join(' · '));
+  }
+
+  // ------------------------------------------------------------------ render
+  // Red notice when the picked tool + model stops working on a known date (Cursor + GPT: model.js shutoffNotice).
+  // Shown once on entering such a pair, from a selection, a shared link or a shot; OK closes it.
+  var shutoffShown = false;
+  function shutoffCheck() {
+    var msg = M.shutoffNotice(st['g.profile'], st['g.model']);
+    var pop = document.getElementById('shutoffPop');
+    if (!msg) { shutoffShown = false; if (pop) pop.hidden = true; return; }
+    if (shutoffShown) return;
+    shutoffShown = true;
+    if (!pop) {
+      pop = document.createElement('div');
+      pop.id = 'shutoffPop'; pop.setAttribute('role', 'alertdialog'); pop.setAttribute('aria-labelledby', 'shutoffMsg');
+      pop.innerHTML = '<p id="shutoffMsg"></p><button type="button">OK</button>';
+      pop.querySelector('button').addEventListener('click', function () { pop.hidden = true; });
+      document.body.appendChild(pop);
+    }
+    pop.querySelector('p').textContent = msg;
+    pop.hidden = false;
+    pop.querySelector('button').focus({ preventScroll: true });
+  }
+
+  function render() {
+    shutoffCheck();
+    R = M.computeAll(st);
+    var rates = R.rates, C = R.C, main = R.main;
+    document.body.classList.toggle('rec', !!st['ui.rec']);
+    $('btnRec').classList.toggle('on', !!st['ui.rec']);
+    var gpt = rates.provider === 'openai';
+
+    // Visibility of fill vs absolute tokens, long-context row
+    ctl['g.fillPct'].wrap.style.display = st['g.useAbs'] ? 'none' : '';
+    ctl['g.absTokens'].wrap.style.display = st['g.useAbs'] ? '' : 'none';
+    $('rowLc').style.display = st['r.lcThreshold'] != null && st['r.lcThreshold'] !== '' ? '' : 'none';
+    ctl['r.usdPerCredit'].wrap.style.display = R.profile && R.profile.billing === 'ai_credits' ? '' : 'none';
+    ctl['g.gptHit'].wrap.style.display = gpt ? '' : 'none';
+    ctl['r.write5m'].wrap.style.display = gpt ? 'none' : '';
+    ctl['r.write1h'].wrap.style.display = gpt ? 'none' : '';
+    ctl['r.lcWrite5m'].wrap.style.display = gpt ? 'none' : '';
+    ctl['r.lcWrite1h'].wrap.style.display = gpt ? 'none' : '';
+    ctl['s1.pollEvery'].wrap.style.opacity = st['s1.poll'] ? 1 : 0.5;
+    ctl['s3.pollEvery'].wrap.style.opacity = st['s3.poll'] ? 1 : 0.5;
+
+    // Badges on preset fields
+    var preset = M.presetFields(st['g.profile'], st['g.model']);
+    var fs = M.fieldStatus(st['g.profile'], st['g.model']);
+    RATE_KEYS.concat(LC_KEYS, ['g.window', 'g.genMin', 'g.gptHit']).forEach(function (k) {
+      var c = ctl[k];
+      if (!c) return;
+      var ab = ASSUMPTION_BADGES[k];
+      var mine = k in preset ? st[k] !== preset[k] : (k in M.USAGE_DEFAULTS && st[k] !== M.USAGE_DEFAULTS[k]);
+      var def = k in preset ? preset[k] : M.USAGE_DEFAULTS[k];
+      if (mine) badge(c.badge, { kind: 'mine', text: 'twoja wartość', title: 'Domyślnie: ' + (def == null ? '–' : nv(def)) });
+      else if (fs[k]) badge(c.badge, { kind: fs[k].status === 'source' ? 'src' : 'unv', text: fs[k].badge, title: fs[k].note + ' (' + fs[k].facts.join(', ') + ')' });
+      else if (ab) badge(c.badge, { kind: ab.kind, text: ab.text, title: M.ASSUMPTIONS[ab.src].source });
+      else badge(c.badge, null);
+    });
+    // Placeholder badges per card
+    document.querySelectorAll('[data-ph]').forEach(function (sp) {
+      var id = sp.getAttribute('data-ph');
+      var keys = id === 'global' ? ['g.fillPct', 'g.absTokens', 'g.days', 'g.budget'] : CARD_KEYS[id];
+      var own = keys.some(function (k) { return st[k] !== M.USAGE_DEFAULTS[k]; });
+      sp.className = 'badge ' + (own ? 'mine' : 'ph');
+      sp.textContent = own ? 'twoje liczby' : 'przykład – wpisz swoje';
+    });
+
+    // Tabs and focus
+    document.querySelectorAll('#tabs button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-scn') === st['ui.focus']); });
+    document.querySelectorAll('.card').forEach(function (c) { c.classList.toggle('focus', c.getAttribute('data-scn') === st['ui.focus']); });
+
+    // Header: the context line carries the caveats, because recording mode hides the badges
+    var prof = R.profile, model = R.model;
+    var ttlMark = fs['r.ttlMain'] ? ' (' + (fs['r.ttlMain'].status === 'source' ? fs['r.ttlMain'].badge : 'niezweryfikowany' + (R.subscription ? ': regresja #103673' : '')) + ')' : '';
+    var ttlTxt = 'TTL' + NB + nv(rates.ttlMain) + NB + 'min' + ttlMark + (rates.ttlSub !== rates.ttlMain ? ', subagenci ' + nv(rates.ttlSub) + NB + 'min' : '');
+    var cMark = fs['g.window'] && !st['g.useAbs'] ? ' (okno kontekstu niezweryfikowane)' : '';
+    var lcMark = main.long ? ' · cena długiego kontekstu' : '';
+    $('ctxline').textContent = (prof ? prof.short : '') + ' · ' + (model ? model.label : '') + ' · C = ' + fmtTok(C) + ' tokenów' + cMark + lcMark + ' · ' + ttlTxt;
+    var gptLine = gpt ? ' W GPT powrót po 5–' + nv(rates.ttlMain) + NB + 'min nadal trafia w cache w ok. ' + pct(rates.gptHit) + ' przypadków (zmierzone, nie obiecane).' : '';
+    setHTML('explain', 'Twoje narzędzie trzyma rozmowę w cache przez <b>' + nv(rates.ttlMain) + NB + 'min</b> (TTL), licząc od startu ostatniego zapytania. ' +
+      'Wrócisz w ciągu ' + nv(rates.ttlMain) + NB + 'min: ponowny odczyt ' + fmtK(C) + ' tokenów kosztuje <b>' + fmtUsd(R.warmResumeUsd) + '</b>. ' +
+      'Później: ponowne wysłanie kosztuje <b>' + fmtUsd(R.coldResumeUsd) + '</b>.' + gptLine);
+    $('heroMiss').textContent = '+' + fmtUsd(R.missUsd);
+    $('heroMissSub').textContent = R.subscription
+      ? 'ekwiwalent API · w 5-godzinnym limicie dopłacasz 0' + NB + '$'
+      : (rates.usdPerCredit ? credits(R.missUsd / rates.usdPerCredit, true) + ' · ' : '') + 'za każdy powrót po ponad ' + nv(rates.ttlMain) + NB + 'min';
+    $('cval').textContent = fmtTok(C);
+
+    var lcNote = main.long ? ' (stawka długiego kontekstu: C + nowy input powyżej ' + fmtTok(rates.lc.threshold) + ')' : '';
+    setHTML('coreFormula',
+      'Dopłata za jeden cache miss = C × (zapis − odczyt) = ' + fmtTok(C) + ' × (' + p(main.write) + ' − ' + p(main.read) + ') / 1M = <b>' + fmtUsd(R.missUsd) + '</b>' + lcNote +
+      ' · Ciepłe zapytanie (odstęp ≤ TTL): C × odczyt = ' + fmtUsd(R.warmResumeUsd) +
+      ' · Zimne zapytanie (odstęp > TTL): C × zapis = ' + fmtUsd(R.coldResumeUsd) +
+      ' · odstęp = czas generowania ostatniej tury + minuty bezczynności (TTL liczy się od startu zapytania, F8)' +
+      ' · Nowe tokeny i tak płacą cenę zapisu, a output kosztuje tyle samo w obu przypadkach.' +
+      (gpt ? ' · GPT: odstęp powyżej 5 min, ale w TTL, to miss z prawdopodobieństwem 1 − odsetek trafień.' : '') +
+      (R.subscription ? ' · Abonament: wszystkie kwoty to ekwiwalent API (w 5-godzinnym limicie dopłacasz 0' + NB + '$).' : ''));
+    $('warnings').textContent = R.warnings.join(' ');
+
+    document.querySelectorAll('.remedy').forEach(function (b) { var id = b.closest('.card').getAttribute('data-scn'); b.classList.toggle('active', !!st[id + '.poll']); });
+    renderWait('s1', R.s1, st['s1.minutes'], st['s1.perDay'], 'Dopłata za przerwę', 'przerwę');
+    renderWait('s2', R.s2, st['s2.minutes'], st['s2.perDay'], 'Dopłata za odpowiedź po czytaniu', 'odpowiedź');
+    renderWait('s3', R.s3, st['s3.minutes'], st['s3.perDay'], 'Dopłata za uruchomienie', 'uruchomienie');
+    renderS3Bars();
+    renderS4();
+    renderS5();
+    renderS6();
+    renderStrip();
+    ['s1', 's2', 's3', 's4', 's5', 's6', 'strip'].forEach(renderRecInputs);
+  }
+
+  function renderWait(id, s, minutes, perDay, label, noun) {
+    var gapTxt = fmtNum(s.gap, 2) + NB + 'min' + genTxt();
+    var sub;
+    if (s.warm) sub = 'Cache nadal ciepły: ' + gapTxt + ' ≤ TTL ' + nv(s.ttl) + NB + 'min';
+    else if (s.partial) sub = 'GPT: ' + gapTxt + ' mieści się w oknie ' + nv(s.ttl) + NB + 'min, ale ok. ' + pct(s.missProb) + ' takich powrotów to i tak miss: średnio ' + pct(s.missProb) + ' × ' + fmtUsd(s.poll.missUsd);
+    else sub = 'Cache wygasł: ' + gapTxt + ' > TTL ' + nv(s.ttl) + NB + 'min, więc cały prefiks ' + fmtK(R.C) + ' jest zapisywany od nowa';
+    var colour = null;
+    if (s.remedyOn && !s.warm) {
+      sub = 'Z pingami: ' + cnt(s.poll.polls, PING) + ' zamiast ponownego zapisu (' + money(s.baseUsd) + ' bez nich)';
+      colour = s.poll.withPollingUsd < s.baseUsd ? 'warmc' : 'miss';
+    }
+    hero(id, label, s.perEventUsd, sub, colour);
+    totals(id + '-tot', s.perDayUsd, s.perMonthUsd, null, colour);
+    setHTML(id + '-fx', 'odstęp = generowanie + N = ' + fmtNum(R.rates.genMin, 2) + ' + ' + nv(minutes) + ' = ' + fmtNum(s.gap, 2) + NB + 'min · dopłata za ' + noun + ' = ' +
+      (s.warm ? '0, bo odstęp ≤ TTL' : (s.partial ? pct(s.missProb) + ' × ' : '') + 'C × (zapis − odczyt) = ' + fmtUsd(s.baseUsd)) +
+      (s.remedyOn && !s.warm ? ' → z pingami: pingi × (C × odczyt + output pinga × output + input pinga × zapis) = ' + nv(s.poll.polls) + ' × ' + fmtUsd(s.poll.pollUsd) : '') +
+      ' · dziennie = k × dopłata = ' + nv(perDay) + ' × ' + fmtUsd(s.perEventUsd) + ' · miesięcznie = dziennie × ' + cnt(R.days, DZIEN_ROB));
+    if ($(id + '-remedy')) {
+      var pl = s.poll;
+      var txt;
+      if (!pl.needed) txt = 'Ping niepotrzebny: czekanie nie przekracza TTL.';
+      else if (!pl.keepsWarm) txt = 'P jest dłuższe niż TTL: każdy ping to też miss (' + cnt(pl.polls, ZIMNY_PING) + (pl.lastMissProb > 0 ? ' i zimne wznowienie' : ', wznowienie ' + fmtNum(pl.restMin, 2) + NB + 'min po ostatnim jest ciepłe') + ' = ' + fmtUsd(pl.withPollingUsd) + '). Ustaw P poniżej ' + nv(s.ttl) + NB + 'min.';
+      else txt = 'pingi = ceil(odstęp / P) − 1 = ' + nv(pl.polls) + ' · jeden ping = ' + fmtUsd(pl.pollUsd) + ' · ' + cnt(pl.polls, PING) + ' = ' + fmtUsd(pl.withPollingUsd) +
+        ' vs jeden miss ' + fmtUsd(pl.missUsd) + ' · próg opłacalności ' + cnt(pl.breakEvenPolls, PING, 1) + ', więc pingi opłacają się przy odstępach do <b>' + fmtNum(pl.maxWorthwhileGapMin, 1) +
+        NB + 'min</b> z narzutem pinga agenta (' + fmtNum(pl.bareMaxGapMin, 1) + NB + 'min z gołym odczytem keep-alive, ' + cnt(pl.bareBreakEvenPolls, PING, 1) + ')';
+      setHTML(id + '-remedy', txt);
+    }
+  }
+
+  function bar(label, total, missPart, max, valueText) {
+    var w = max > 0 ? Math.max(0.5, 100 * total / max) : 0;
+    var mw = total > 0 ? 100 * missPart / total : 0;
+    return '<div class="bar"><div class="bl">' + label + '</div><div class="track"><div class="fill" style="width:' + w + '%"><div class="m" style="width:' + mw + '%"></div></div></div><div class="bv ' + (missPart > 1e-12 ? 'miss' : 'warmc') + '">' + valueText + '</div></div>';
+  }
+
+  function renderS3Bars() {
+    var pl = R.s3.poll;
+    var withP = pl.withPollingUsd, without = pl.withoutPollingUsd;
+    var max = Math.max(withP, without, 1e-9);
+    setHTML('s3-bars',
+      bar('Jeden miss (bez rozwiązania)', without, without, max, fmtUsd(without)) +
+      bar('Ping co ' + nv(st['s3.pollEvery']) + NB + 'min', withP, pl.keepsWarm ? pl.lastMissProb * pl.missUsd : withP, max, fmtUsd(withP)));
+  }
+
+  var LAYOUT_PL = { hub: 'LLM hub-and-spoke', sequential: 'Jeden agent sekwencyjnie', code: 'Orkiestracja w kodzie' };
+
+  function renderS4() {
+    var s = R.s4, L = s.layouts;
+    var label = 'LLM hub-and-spoke (orkiestrator LLM + subagenci): koszt czekania na przebieg';
+    var d = s.savingCodeVsHubUsd;
+    var sub = 'Orkiestracja w kodzie: ' + money(L.code.usd) + ' · ' + (d >= 0 ? 'oszczędza ' + fmtUsd(d) : 'kosztuje ' + fmtUsd(-d) + ' więcej') + ' na przebiegu';
+    hero('s4', label, s.heroUsd, sub, L.hub.missUsd > 1e-12 ? 'miss' : 'warmc');
+    var max = Math.max(L.hub.usd, L.sequential.usd, L.code.usd, 1e-9);
+    setHTML('s4-bars',
+      bar(LAYOUT_PL.hub, L.hub.usd, L.hub.missUsd, max, money(L.hub.usd)) +
+      bar(LAYOUT_PL.sequential, L.sequential.usd, L.sequential.missUsd, max, money(L.sequential.usd)) +
+      bar(LAYOUT_PL.code, L.code.usd, L.code.missUsd, max, money(L.code.usd)));
+    var note;
+    if (L.sequential.missUsd > 1e-12) {
+      note = 'Wykonanie sekwencyjne tego nie naprawia: jeden agent nadal czeka ' + nv(st['s4.wait']) + NB + 'min na każde wywołanie narzędzia, a trzyma teraz ' + fmtK(s.cAvg) + ' tokenów zamiast ' + fmtK(st['s4.cs']) + '.';
+    } else {
+      note = 'Wykonanie sekwencyjne nie ma tu ponownych zapisów tylko dlatego, że jego czekanie (' + fmtNum(s.gaps.wait, 2) + ' i ' + fmtNum(s.gaps.problem, 2) + NB + 'min z generowaniem) mieści się w TTL głównej rozmowy, ' + nv(R.rates.ttlMain) + NB + 'min. Dłuższe czekanie je przywróci.';
+    }
+    $('s4-note').textContent = note;
+    var rows = '';
+    [[LAYOUT_PL.hub, L.hub], [LAYOUT_PL.sequential, L.sequential], [LAYOUT_PL.code, L.code]].forEach(function (pair) {
+      pair[1].lines.forEach(function (l) {
+        var ttl = l.bucket === 'sub' ? R.rates.ttlSub : R.rates.ttlMain;
+        var state = l.kind === 'premium' ? 'dopłata za zapis ponad cenę 5 min' : (l.gap == null ? 'nowy zapis' :
+          (l.cold ? 'zimne (' + fmtNum(l.gap, 2) + NB + 'min > ' + nv(ttl) + ')' : (l.partial ? pct(l.missProb) + ' szans na miss (' + fmtNum(l.gap, 2) + NB + 'min)' : 'ciepłe (' + fmtNum(l.gap, 2) + NB + 'min ≤ ' + nv(ttl) + ')')));
+        rows += '<tr><td>' + pair[0] + '</td><td>' + l.label + '</td><td class="fx">' + l.formula + ' · ' + fmtNum(l.count, 2) + ' × ' + fmtK(l.C) + ' · ' + state + '</td><td class="v">' + fmtUsd(l.usd) + '</td></tr>';
+      });
+    });
+    setHTML('s4-lines', rows);
+    totals('s4-tot', s.perDayUsd, s.perMonthUsd, 'dla „' + LAYOUT_PL[s.layout] + '” × ' + cnt(st['s4.runs'], PRZEBIEG) + ' dziennie', s.missPerDayUsd > 1e-12 ? 'miss' : 'warmc');
+    setHTML('s4-fx', 'wznowienie(C, odstęp) = C × odczyt, gdy odstęp ≤ TTL, inaczej C × zapis · odstęp = generowanie + czekanie · hub ma miss raz na falę, gdy D > TTL głównej rozmowy · subagenci mają własny TTL · kontekst sekwencyjny = (C_s + C_o) / 2 = ' + fmtK(s.cAvg) +
+      ' · przy TTL 1 h każdy kontekst płaci też raz (zapis − zapis 5 min) (remedies.md, sekcja 3) · orkiestracja w kodzie nie ma czekającego huba LLM; nowy agent naprawczy i gumowa kaczka startują z pliku przekazania (H tokenów) · „Wlicz do mojego dnia” dodaje do budżetu miesięcznego tylko ponowne zapisy (' + fmtUsd(s.missPerDayUsd) + ' dziennie)');
+  }
+
+  function renderS5() {
+    var s = R.s5;
+    var sub = s.warm ? 'Każdy agent ma jeszcze ciepły cache, gdy do niego wracasz'
+      : (s.partial ? 'GPT: ok. ' + pct(s.missProb) + ' powrotów po ' + fmtNum(s.gap, 1) + NB + 'min to i tak miss: ' + cnt(s.returnsPerHour, POWROT, 1) + ' na godzinę × ' + money(s.perReturnUsd) + ' średnio'
+        : 'Każdy powrót zapisuje od nowa ' + fmtK(st['s5.ca']) + ' tokenów: ' + cnt(s.returnsPerHour, POWROT, 1) + ' na godzinę × ' + money(s.perReturnUsd));
+    hero('s5', 'Dopłata za godzinę pracy na zmianę', s.perHourUsd, sub);
+    $('s5-maxn').textContent = isFinite(s.largestWarmN) ? String(s.largestWarmN) : '∞';
+    $('s5-maxn-l').textContent = R.rates.provider === 'openai' ? 'Najwięcej agentów w oknie ' + nv(s.ttl) + NB + 'min' : 'Najwięcej agentów bez wygaśnięcia cache';
+    $('s5-maxn').className = 'big ' + (st['s5.n'] <= s.largestWarmN ? 'warmc' : 'miss');
+    $('s5-gap').textContent = fmtNum(s.gap, 1) + NB + 'min';
+    $('s5-gap').className = 'big ' + (s.warm ? 'warmc' : 'miss');
+    var n = Math.round(st['s5.n']);
+    var shown = Math.max(12, n);
+    var h = '';
+    var full = n <= s.largestWarmN;
+    for (var i = 1; i <= shown; i++) {
+      var c = i <= n ? (full ? (s.partial ? 'p' : 'w') : 'c') : '';
+      h += '<div class="dot ' + c + '">' + i + '</div>';
+      if (i === s.largestWarmN && i < shown) h += '<div class="limit"><span>limit TTL</span></div>';
+    }
+    setHTML('s5-dots', h);
+    setHTML('s5-legend', '<span><span class="sw" style="background:var(--circuit)"></span>agent wraca do ciepłego cache</span><span><span class="sw" style="background:var(--crimson)"></span>agent wraca do wygasłego cache</span>' +
+      (s.partial ? '<span><span class="sw" style="background:var(--ember)"></span>GPT: ok. ' + pct(s.missProb) + ' powrotów to miss</span>' : ''));
+    totals('s5-tot', s.perDayUsd, s.perMonthUsd);
+    setHTML('s5-fx', 'czekanie = (N − 1) × R + generowanie = ' + (n - 1) + ' × ' + nv(st['s5.r']) + ' + ' + fmtNum(R.rates.genMin, 2) + ' = ' + fmtNum(s.gap, 2) + NB + 'min · najwięcej agentów bez missa = floor((TTL − generowanie) / R) + 1 = floor(' + fmtNum(s.ttl - R.rates.genMin, 2) + ' / ' + nv(st['s5.r']) + ') + 1 = ' + (isFinite(s.largestWarmN) ? s.largestWarmN : '∞') +
+      ' · powroty na godzinę = 60 / R · dopłata na godzinę = powroty × C × (zapis − odczyt) · maks. minut na agenta przy tym N = (TTL − generowanie) / (N − 1) = ' + (isFinite(s.maxMinutesEach) ? fmtNum(s.maxMinutesEach, 2) : '∞'));
+  }
+
+  function renderS6() {
+    var s = R.s6;
+    var budget = R.budget;
+    var hv = $('s6-hv'), hs;
+    if (R.subscription) {
+      setHTML('s6-hl', 'Abonament: stała opłata · po cenach API ' + fmtNum(budget, 0) + NB + '$ wystarczy na');
+      hv.textContent = cnt(s.daysReal, DZIEN, 1);
+      hv.className = 'hero-val ' + (s.extraDayUsd > 1e-12 ? 'miss' : 'warmc');
+      hs = '<span class="api">ekwiwalent API, miara tempa zużywania limitu: ' + cnt(s.daysWarm, DZIEN, 1) + ' przy ciepłym cache, ' + cnt(s.daysNoCache, DZIEN, 1) + ' bez cache</span>';
+    } else {
+      setHTML('s6-hl', 'Twój budżet ' + fmtNum(budget, 0) + NB + '$ wystarczy na');
+      hv.textContent = cnt(s.daysReal, DZIEN, 1);
+      hv.className = 'hero-val ' + (s.extraDayUsd > 1e-12 ? 'miss' : 'warmc');
+      hs = 'pracy przy twoim TTL<br><span style="white-space:nowrap"><b class="warmc">' + cnt(s.daysWarm, DZIEN, 1) + '</b> przy ciepłym cache</span> · <span style="white-space:nowrap"><b>' + cnt(s.daysNoCache, DZIEN, 1) + '</b> bez cache</span>';
+    }
+    setHTML('s6-hs', hs);
+    $('s6-share').textContent = fmtNum(s.rewriteShare * 100, 0) + '%';
+    var wPct = s.realDayUsd > 0 ? 100 * s.warmDayUsd / s.realDayUsd : 100;
+    setHTML('s6-stack', '<div style="width:' + wPct + '%;background:var(--ink)"></div><div style="width:' + (100 - wPct) + '%;background:var(--crimson)"></div>');
+    setHTML('s6-sharesub', '<span style="white-space:nowrap"><span class="sw" style="background:var(--ink)"></span>ciepły ruch ' + money(s.warmDayUsd) + '/dzień</span> · <span style="white-space:nowrap"><span class="sw" style="background:var(--crimson)"></span>ponowne zapisy ' + money(s.extraDayUsd) + '/dzień</span>' + (R.subscription ? ' <span class="api">(ekwiwalent API)</span>' : ''));
+    var cr = R.rates.usdPerCredit && !R.subscription;
+    function mrow(label, v, c) {
+      return '<div class="tot" style="align-items:baseline"><div><span>' + label + '</span><b class="' + c + '">' + money(v) + '</b>' + (cr ? '<small>' + credits(v / R.rates.usdPerCredit) + '</small>' : '') + (R.subscription ? '<small class="api">ekwiwalent API</small>' : '') + '</div></div>';
+    }
+    setHTML('s6-month', mrow('Przy twoim TTL', s.realMonthUsd, cls(s.extraMonthUsd)) + mrow('Ciepły cache', s.warmMonthUsd, 'warmc') + mrow('Bez cache', s.noCacheMonthUsd, ''));
+    var rows = '<tr><td>Zwykły ruch, ciepły cache</td><td class="fx">' + cnt(st['s6.requests'], ZAPYTANIE) + ' × (' + fmtK(s.cAvg) + ' × odczyt + ' + fmtTok(st['s6.newTok']) + ' × zapis + ' + fmtTok(st['s6.outTok']) + ' × output) = ' + nv(st['s6.requests']) + ' × ' + fmtUsd(s.warmPerRequestUsd) + '</td><td class="v">' + fmtUsd(s.warmDayUsd) + '/dzień</td></tr>';
+    s.extras.forEach(function (e) { rows += '<tr><td>Ponowne zapisy: ' + e.name + '</td><td class="fx">z karty scenariusza</td><td class="v">' + fmtUsd(e.usd) + '/dzień</td></tr>'; });
+    if (!s.extras.length) rows += '<tr><td colspan="3">Żaden scenariusz nie ma zaznaczonego „Wlicz do mojego dnia”.</td></tr>';
+    setHTML('s6-lines', rows);
+    setHTML('s6-fx', 'realny dzień = ciepły dzień + ponowne zapisy · udział = ponowne zapisy / realny dzień · dni = budżet / koszt dnia · bez cache = zapytania × ((C_avg + nowy input) × input + output × cena outputu) = ' + nv(st['s6.requests']) + ' × ' + fmtUsd(s.noCachePerRequestUsd) +
+      ' · przybliżenie: zdarzenia ze scenariuszy liczą się do zapytań przy średnim prefiksie, a ich dopłata za ponowny zapis jest doliczana osobno');
+  }
+
+  function renderStrip() {
+    var S = R.strip;
+    var tiles = S.rows.slice();
+    if (S.yours.shown) tiles.unshift(S.yours);
+    $('strip-tiles').style.gridTemplateColumns = 'repeat(' + tiles.length + ', 1fr)';
+    var claude = R.rates.provider !== 'openai';
+    var h = '';
+    tiles.forEach(function (r) {
+      var mark = '';
+      if (r.hypothetical) mark = ' <span class="badge hyp">hipotetyczny: ' + (claude && r.id === 'ttl60' ? 'narzędzie tego nie oferuje' : 'brak w ' + (claude ? 'Claude' : 'GPT')) + '</span>';
+      else if (r.isYours) mark = ' <span class="badge mine">' + (r.id === 'yours' ? 'twoje dwa TTL' : 'twoje narzędzie') + '</span>';
+      var colour = r.hypothetical ? '' : (r.dayUsd <= 1e-9 ? 'warmc' : (r.rewriteUsd > 1e-9 && r.id !== 'heartbeat' ? 'miss' : ''));
+      var extra = '';
+      if (R.subscription) extra = '<br><span class="api">ekwiwalent API</span>';
+      else if (R.rates.usdPerCredit) extra = '<br>' + credits(r.dayUsd / R.rates.usdPerCredit) + ' dziennie';
+      var prem = Math.abs(r.premiumUsd) > 1e-9 ? (r.premiumUsd > 0 ? ' (w tym ' + fmtUsd(r.premiumUsd) + '/dzień dopłaty za zapis ' + fmtK(S.writtenTokensPerDay) + ' tokenów dziennie)' : ' (w tym ' + fmtUsd(-r.premiumUsd) + '/dzień oszczędności na zapisie ' + fmtK(S.writtenTokensPerDay) + ' tokenów dziennie)') : '';
+      var bare = r.id === 'heartbeat' ? ' · goły odczyt keep-alive co ' + nv(st['strip.heartbeat']) + NB + 'min (F14, tylko API, C × odczyt) kosztowałby ' + fmtUsd(r.bareUsd) + '/dzień' : '';
+      h += '<div class="tile' + (r.isYours ? ' cur' : '') + (r.hypothetical ? ' hyp' : '') + '"><h3>' + r.label + mark + '</h3>' +
+        '<div class="tv ' + colour + '">' + money(r.dayUsd) + '</div><div class="tm">dziennie<br>' + money(r.monthUsd) + ' miesięcznie' + extra +
+        '</div><div class="fx">' + r.note + prem + bare + '</div></div>';
+    });
+    setHTML('strip-tiles', h);
+    setHTML('strip-fx', 'na każdy TTL: Σ zdarzeń × (odstęp > TTL ? C × (zapis kafelka − odczyt) : 0) + tokeny zapisane dziennie × (zapis kafelka − twój zapis), osobno dla rozmowy i subagentów; tokeny zapisane dziennie = większa z dwóch wartości: ' + cnt(st['s6.requests'], ZAPYTANIE) + ' × ' + fmtTok(st['s6.newTok']) + ' nowych tokenów albo konteksty budowane przez wliczone scenariusze (tu ' + fmtK(S.writtenTokensPerDay) + ', ' + (S.writtenFrom === 'contexts' ? 'z kontekstów scenariuszy' : 'z ruchu zapytań') + ') · ping agenta: pingi = ceil(odstęp / interwał) − 1, każdy ping = C × odczyt + tokeny pinga · 30 min w Claude oraz 5 min / 1 h w GPT są hipotetyczne (brak takiego progu); 1 h w Claude też, gdy narzędzie nie oferuje 1 h (Cursor)');
+  }
+
+  // ------------------------------------------------------------------ start
+  st = M.decodeState(location.hash);
+  build();
+  syncInputs();
+  render();
+})();
+</script>
+<script>
+  // Language switch: carry the current hash, so the English page opens the same configuration.
+  (function () {
+    var a = document.getElementById('langSwitch');
+    function sync() { a.href = 'index.html' + location.hash; }
+    ['mouseenter', 'focus', 'mousedown', 'touchstart'].forEach(function (e) { a.addEventListener(e, sync); });
+    sync();
+  })();
+</script>
+</body>
+</html>
