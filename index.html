@@ -296,6 +296,9 @@
   details.maths { margin-top: 18px; border-top: 1px solid var(--line); }
   .well { background: var(--well); border: 1px solid var(--line); border-radius: var(--r-card); padding: 18px 22px; font-family: var(--font-mono); font-size: 14px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
   .well table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  /* Tables keep whole words; on a phone the well scrolls sideways instead of breaking "Sequential" into "Sequ / enti / al". */
+  .well:has(table) { overflow-x: auto; }
+  .well th, .well td { overflow-wrap: normal; }
   .well th { text-align: left; font-weight: 500; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); border-bottom: 1px solid var(--line-2); padding: 6px 10px 6px 0; }
   .well td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   .well td.v { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
