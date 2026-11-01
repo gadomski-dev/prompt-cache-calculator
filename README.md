@@ -249,3 +249,8 @@ US-only inference x1.1 (F12, F63), usage credits over the subscription limit (ra
 open question 6), and whether a Copilot 1-hour write would be billed at 2x (open question 1).
 Editing a field turns its badge into "your value"; editing a card's inputs turns its
 "placeholder - set your own" badge into "your numbers".
+
+## Licence
+
+Code and documentation: MIT (`LICENSE`). Fonts: SIL Open Font License 1.1 (`fonts/LICENSE-*.txt`).
+Prices and quotes in `research/` belong to their vendors and are cited with links.
