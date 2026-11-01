@@ -1327,8 +1327,7 @@
       (R.subscription ? ' · subscription: marginal $0 inside the 5-hour limit, but it burns the limit' : ''));
     // Plain sentences on screen; the research IDs move into the tooltip.
     var wRaw = R.warnings.join(' ');
-    var wShown = noIds(wRaw).replace(/^Context C \((\d+)\) is larger than the context window \((\d+)\)\./, function (m0, a, b) { return 'Your context (' + fmtTok(+a) + ' tokens) is larger than the context window (' + fmtTok(+b) + ').'; });
-    setText('warnings', wShown);
+    setText('warnings', noIds(wRaw));
     var wIds = idsOf(wRaw), wn = $('warnings');
     if (wIds.length) { wn.setAttribute('data-tip', 'Sources in the research notes: ' + wIds.join(', ') + '.'); wn.tabIndex = 0; }
     else { wn.removeAttribute('data-tip'); wn.removeAttribute('tabindex'); }

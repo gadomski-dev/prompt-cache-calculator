@@ -968,14 +968,16 @@
     }, days);
 
     var warnings = [];
-    if (C > window) warnings.push('Context C (' + C + ') is larger than the context window (' + window + ').');
+    // Warnings are shown as written: plain words and grouped numbers, no symbols from the formulas.
+    function tok(x) { return Math.round(x).toLocaleString('en-US'); }
+    if (C > window) warnings.push('Your context (' + tok(C) + ' tokens) is larger than the context window (' + tok(window) + ').');
     if (model && model.long_context && model.long_context.unverified_fields && C + rates.newTok > model.long_context.threshold_tokens) {
       warnings.push(model.label + ' above ' + model.long_context.threshold_tokens + ' tokens: only the $' + model.long_context.cache_write_30m_per_mtok.toFixed(2) +
         ' cache write is verified (F46); input, read and output of that tier are inferred or assumed.');
     }
     var cwin = profile && model && profile.context_windows && profile.context_windows[model.id];
     if (cwin && C > cwin.def && C <= cwin.max) {
-      warnings.push('Context C (' + C + ') is above the default context window of ' + model.label + ' in Cursor (' + cwin.def + '); it needs the larger context setting (up to ' + cwin.max + ').');
+      warnings.push('Your context (' + tok(C) + ' tokens) is above the default context window of ' + model.label + ' in Cursor (' + tok(cwin.def) + '); it needs the larger context setting (up to ' + tok(cwin.max) + ').');
     }
     if (model && model.promo_until) {
       var pd = model.promo_until.split('-');

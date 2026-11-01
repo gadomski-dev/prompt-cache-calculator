@@ -454,7 +454,10 @@ test('TTL strip: no 1-hour lifetime in Cursor or Copilot, still one in Claude Co
 
 test('Cursor context windows: default window warning, documented windows carry no badge', () => {
   const r = M.computeAll(M.defaultState('cursor-claude', 'claude-opus-5-5')); // C = 40% of 1M = 400K
-  assert.ok(r.warnings.some((w) => /default context window of Claude Opus 5\.5 in Cursor \(300000\)/.test(w)));
+  assert.ok(r.warnings.includes('Your context (400,000 tokens) is above the default context window of Claude Opus 5.5 in Cursor (300,000); it needs the larger context setting (up to 1,000,000).'));
+  // the other context warning reads the same way
+  assert.ok(M.computeAll({ ...M.defaultState(), 'g.useAbs': true, 'g.absTokens': 1200000 }).warnings
+    .includes('Your context (1,200,000 tokens) is larger than the context window (1,000,000).'));
   assert.equal(M.fieldStatus('cursor-claude', 'gpt-5-6-sol')['g.window'], undefined);
   assert.equal(M.defaultState('cursor-claude', 'gpt-5-3-codex')['g.window'], 272000);
   // Copilot keeps the placeholder badge for GPT-5.6 Sol
