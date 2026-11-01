@@ -439,7 +439,9 @@
     font-weight: 600; font-size: 18px; line-height: 26px; box-shadow: 0 8px 28px rgba(0,0,0,.25); }
   #shutoffPop[hidden] { display: none; }
   #shutoffPop p { margin: 0; flex: 1; }
-  #shutoffPop button { flex: none; border: 2px solid #fff; background: transparent; color: #fff; font: inherit; padding: 6px 16px; border-radius: 999px; cursor: pointer; }
+  #shutoffPop button { flex: none; border: 2px solid currentColor; background: transparent; color: inherit; font: inherit; padding: 6px 16px; border-radius: 999px; cursor: pointer; }
+  /* Graphite's --lost is a light crimson (#FF6275): white on it is 2.89:1, ink is 6.57:1 (WCAG AA needs 4.5:1 at 18px/600). */
+  [data-edition="graphite"] #shutoffPop { color: var(--gd-ink); }
 </style>
 </head>
 <body>
