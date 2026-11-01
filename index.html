@@ -228,11 +228,6 @@
   body.rec #card-s4.focus > .tot { grid-row: 3; }
   body.rec #card-s5.focus { row-gap: 6px; }
   body.rec .ctxline { font-size: 28px; }
-  /* Language switch: opens the same configuration (URL hash) in the other language */
-  .top .wrap { position: relative; }
-  .lang { position: absolute; top: 6px; right: 20px; font-family: "Geist Mono", monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; line-height: 1.5; color: var(--paper); text-decoration: none; border: 1.5px solid #8a8a85; border-radius: 4px; padding: 0 6px; opacity: 0.8; }
-  .lang:hover, .lang:focus { opacity: 1; border-color: var(--paper); }
-  body.rec .lang { display: none !important; }
   #shutoffPop { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); z-index: 1000; max-width: 640px; width: calc(100% - 48px);
     display: flex; align-items: center; gap: 16px; padding: 16px 20px; border-radius: 12px; background: var(--crimson); color: #fff;
     font-weight: 600; font-size: 18px; line-height: 26px; box-shadow: 0 8px 28px rgba(0,0,0,.25); }
@@ -262,7 +257,6 @@
         <button id="btnReset" type="button">Reset to defaults</button>
       </div>
     </div>
-    <a class="lang" id="langSwitch" href="index.pl.html" hreflang="pl" lang="pl" title="Wersja polska">PL</a>
   </div>
 </header>
 <button class="exit" id="btnExit" type="button">Exit recording mode (Esc)</button>
@@ -1029,15 +1023,6 @@
   syncInputs();
   render();
 })();
-</script>
-<script>
-  // Language switch: carry the current hash, so the Polish page opens the same configuration.
-  (function () {
-    var a = document.getElementById('langSwitch');
-    function sync() { a.href = 'index.pl.html' + location.hash; }
-    ['mouseenter', 'focus', 'mousedown', 'touchstart'].forEach(function (e) { a.addEventListener(e, sync); });
-    sync();
-  })();
 </script>
 </body>
 </html>

@@ -5,7 +5,7 @@ Claude Code. Tune it to your own day, then show it on camera.
 
 ## How to open it
 
-Double-click `index.html` (English), `index.pl.html` (Polish) or `v2.html` (the gadomski.dev-branded version with the episode's shot list).
+Double-click `index.html` or `v2.html` (the gadomski.dev-branded version with the episode's shot list).
 No build step, no dependencies, no network. Fonts load from `fonts/`.
 
 - Every input is stored in the URL hash, so a bookmarked URL reopens the same configuration.
@@ -20,8 +20,7 @@ No build step, no dependencies, no network. Fonts load from `fonts/`.
 - Token fields accept `400,000`, `400 000`, `400K` and `1.5M`; a grey `= 400K` hint shows the value.
 - Switching tool or billing keeps a context window you typed, so a tool-to-tool comparison keeps
   the same C. Picking a model still re-presets it.
-- Tests: `node --test model.test.mjs` (38 tests, hand-computed expected values) and
-  `node --test model.pl.test.mjs` (6 tests for the Polish layer).
+- Tests: `node --test model.test.mjs` (38 tests, hand-computed expected values).
 
 Files:
 
@@ -30,36 +29,8 @@ Files:
 | `model.js` | Pure maths, no DOM. Browser global `CacheModel`, Node `module.exports`. Constants copied from `research/constants.json` with status and fact ids. |
 | `index.html` | The UI. Loads `model.js`; inline CSS and JS. |
 | `model.test.mjs` | `node:test` tests for every scenario's default inputs. |
-| `index.pl.html` | The same UI with every visible string in Polish. Loads `model.js`, then `model.pl.js`. |
-| `model.pl.js` | Polish text for what `model.js` returns. No maths. |
-| `model.pl.test.mjs` | Checks that the Polish layer changes no number and leaves no English sentence. |
 | `fonts/` | League Spartan, Geist and Geist Mono, both under the SIL Open Font License 1.1 (`fonts/LICENSE-*.txt`). |
 | `research/` | `facts.md` (every fact id the page cites, with source and quote) and `constants.json` (the values `model.js` copies). |
-
-## Polish version
-
-Open `index.pl.html`. The small `EN` / `PL` box in the top-right corner switches language and keeps
-the URL hash, so a bookmarked configuration opens the same in both. It is hidden in recording mode.
-
-- **Maths is shared.** Both pages run the same `model.js`; the hash format is the same.
-- **`model.js` is not translated.** `model.pl.js` swaps the English labels and notes of the
-  constants by id (model labels and notes, tool and billing names, assumption sources, scenario
-  names) and wraps the two functions that build English sentences, `fieldStatus` (badges and
-  tooltips) and `computeAll` (warnings, scenario 4 lines, TTL comparison tiles). It translates only
-  the returned strings, by exact match or pattern; numbers, keys, statuses and fact ids pass through.
-  A sentence with no Polish rule stays English and is listed in `CacheModel.PL.missing`;
-  `model.pl.test.mjs` runs every tool + model pair, so a new English sentence in `model.js` fails it.
-- **The UI text is a copy.** `index.pl.html` is `index.html` with Polish strings, so a UI change in
-  `index.html` has to be repeated there.
-- **Numbers**: decimal comma, non-breaking space between thousands, currency after the number:
-  `+1,92 $`, `14,40 $`, `1 440 kredytów AI`, tokens `400 000`, `400K`, `1,5M`. Nouns after numbers
-  take the Polish plural (`1 kredyt`, `192 kredyty`, `2,1 dnia`).
-- **Typing numbers**: `3,5` and `3.5` both work. A comma is a decimal comma (`0,125` = 0.125); only
-  in token fields does `400,000` still mean four hundred thousand.
-- **Layout, Polish page only**: in recording mode scenario 4 shows Per day / Per month beside the
-  hero (as the CSS comments intend), so the card fits 1080 px; scenario 5 has tighter row gaps.
-- **English terms kept on purpose**: cache, cache miss, TTL, prompt, token, input, output, ping,
-  keep-alive, build, worktree, hub-and-spoke, subagent, LLM, API, product, plan and model names.
 
 ## The core model
 
