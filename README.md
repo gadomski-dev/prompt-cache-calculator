@@ -21,9 +21,14 @@ no network: fonts are bundled in `fonts/`.
   budget, and the same day under each cache lifetime).
 - **The starting numbers are placeholders** for a heavy agent user. Set your own: each tab says
   "sample numbers" until you do.
-- **Every price and cache lifetime carries a badge**: verified, from client source, community
-  measured, "unverified - edit me", or "assumption - edit me". Hover a badge for its fact id;
-  [`research/facts.md`](research/facts.md) holds the source and quote behind each one.
+- **A value without a primary source carries a badge; a verified value carries none.** The
+  labels: "unverified" (no primary source for this value in this tool, so set your own),
+  "unverified window" (the context window), "source", "client source" or "staff post" (sourced,
+  but not from the vendor's docs), "assumption" (the calculator's own estimate),
+  "community-measured" (the GPT hit rate), "hypothetical" (a cache lifetime your tool or model
+  does not offer) and "yours" (a value you changed). Hover a badge for its source and, where one
+  exists, its fact id; [`research/facts.md`](research/facts.md) holds the source and quote behind
+  each fact id.
 - **Every input lives in the URL hash**, so a copied link reopens the same configuration. Only
   values that differ from the defaults are written. **Reset** restores them.
 - Token fields accept `400,000`, `400 000`, `400K` and `1.5M`.
@@ -215,13 +220,13 @@ Verified (primary source):
   rates in Copilot: F46, F80-F86.
 - Which model rates each tool lists: Copilot F45 (Opus 5.5, Opus 5, Opus 4.8, Sonnet 5.5, Fable 5.1)
   and F46 (the four GPT models); Cursor F63 (Opus 5.5) and F71 (GPT-5.6 Sol); Cursor Teams F64
-  (Opus 5.5). Every other tool + model pair is badged "unverified - edit me" (list price used).
+  (Opus 5.5). Every other tool + model pair is badged "unverified" (list price used).
 - 1 AI credit = $0.01: F41.
 - Claude Code TTL per bucket (subscription main 1 h, subagents 5 min; API 5 min; 1 h configurable): F20-F23.
 - Copilot Claude 5 min (VS Code source and CLI logs, not stated by GitHub): K1, F52.
   Copilot GPT-5.6+ 30-minute minimum: K2, F52, F80. Cursor Claude 5 min (staff): K4, F65.
 
-Shown with an "unverified - edit me" badge:
+Shown with an "unverified" badge:
 
 - **Context window of Claude inside Copilot** - not verified; a 540K session was measured
   (facts.md open question 2).
@@ -240,7 +245,7 @@ Shown with an "unverified - edit me" badge:
 - **GPT-5.6 Sol prices** - verified, but a promotional rate "at least through November 21, 2026"
   (F85); a warning says so.
 
-Badged "assumption - edit me" (the calculator's own assumptions, not vendor facts):
+Badged "assumption" (the calculator's own assumptions, not vendor facts):
 
 - **Poll overhead (200 output + 300 new input tokens per poll)** - our estimate for a short poll turn.
 - **Generation time per turn (1 min)** - F8 says it counts; the length is an assumption.
@@ -251,8 +256,8 @@ Not modelled (also stated on the Budget tab): Copilot plan allowances and discou
 Cursor fast mode (2x every price) and regional or US-only endpoints +10% (F63), US-only inference
 x1.1 on the Claude API (F12), usage credits over the subscription limit (rate unverified, open
 question 6), and whether a Copilot 1-hour write would be billed at 2x (open question 1).
-Editing a field turns its badge into "your value"; editing a card's inputs turns its
-"placeholder - set your own" badge into "your numbers".
+Editing a field turns its badge into "yours"; editing a tab's inputs turns its "sample numbers"
+badge into "your numbers".
 
 ## Licence
 
