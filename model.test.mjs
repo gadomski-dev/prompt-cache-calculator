@@ -107,6 +107,25 @@ test('poll interval longer than TTL: the final resume is warm when the rest afte
   close(M.pollPlan(rates, 400000, 20, 6, 'main', 200, 300).withPollingUsd, 6.0165);
 });
 
+test('GPT poll interval between 5 min and the TTL: each poll misses at 1 - hit rate, not always', () => {
+  const rates = M.ratesFromState(M.defaultState('copilot-gpt', 'gpt-5-6-sol'));
+  // gap 41, P 10: polls at 10, 20, 30, 40, rest 1 -> 4 x (0.329 + 0.23 x 3.68) = 4.7016
+  const p = M.pollPlan(rates, 400000, 41, 10, 'main', 200, 300);
+  assert.equal(p.keepsWarm, false);
+  close(p.pollMissProb, 0.23);
+  assert.equal(p.sureWarmIntervalMin, 5);
+  close(p.withPollingUsd, 4.7016);
+  // above the TTL every poll misses
+  assert.equal(M.pollPlan(rates, 400000, 41, 31, 'main', 200, 300).pollMissProb, 1);
+  // Claude: the sure-warm interval is the TTL
+  assert.equal(M.pollPlan(M.ratesFromState(D), 400000, 16, 3.5, 'main', 200, 300).sureWarmIntervalMin, 5);
+  // TTL strip: a 6-min heartbeat on GPT misses 23% of the time, not always
+  const r = M.computeAll({ ...M.defaultState('copilot-gpt', 'gpt-5-6-sol'), 'strip.heartbeat': 6 });
+  assert.equal(r.strip.heartbeatKeepsWarm, false);
+  close(r.strip.heartbeatPollMissProb, 0.23);
+  assert.ok(!/longer than TTL/.test(r.strip.rows.find((x) => x.id === 'heartbeat').note));
+});
+
 test('generation time counts against the TTL (F8): 4.5 min of reading after a 1-minute answer is a miss', () => {
   const r = M.computeAll({ ...D, 's2.minutes': 4.5 });
   assert.equal(r.s2.gap, 5.5);

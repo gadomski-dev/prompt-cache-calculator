@@ -1402,7 +1402,8 @@
       var pl = s.poll;
       if (badP) t += ' Set a poll interval of at least ' + pMin + ' min.';
       else if (!pl.needed) t += ' No poll is needed.';
-      else if (!pl.keepsWarm) t += ' With the fix: polling every ' + st[id + '.pollEvery'] + ' min is slower than the cache lifetime, so every poll misses too (<b>' + fmtUsd(pl.withPollingUsd) + '</b>). Set it below ' + s.ttl + ' min.';
+      else if (!pl.keepsWarm && pl.pollMissProb >= 1) t += ' With the fix: polling every ' + st[id + '.pollEvery'] + ' min is slower than the cache lifetime, so every poll misses too (<b>' + fmtUsd(pl.withPollingUsd) + '</b>). Set it to ' + fmtNum(pl.sureWarmIntervalMin, 2) + ' min or less.';
+      else if (!pl.keepsWarm) t += ' With the fix: polls ' + st[id + '.pollEvery'] + ' min apart are more than ' + M.GPT_SURE_WARM_MIN + ' min apart, and on GPT about <b>' + pct(pl.pollMissProb) + '</b> of such polls still miss <span class="q">(community-measured)</span>, so polling costs <b>' + fmtUsd(pl.withPollingUsd) + '</b> instead of ' + fmtUsd(s.baseUsd) + '. Poll every ' + fmtNum(pl.sureWarmIntervalMin, 2) + ' min or less to keep the cache warm.';
       else t += ' With the fix, the agent polls <b>' + pl.polls + '</b> times (' + fmtUsd(pl.pollUsd) + ' each): <b>' + fmtUsd(pl.withPollingUsd) + '</b> instead of ' + fmtUsd(s.baseUsd) + '.';
     }
     setHTML(id + '-story', t);
@@ -1435,7 +1436,10 @@
     if (id !== 's2') {
       var pl3 = s.poll;
       fx += '<br><br>polls = ceil(gap / P) − 1 = ' + pl3.polls + ' · one poll = ' + fmtUsd(pl3.pollUsd) + ' · break-even ' + fmtNum(pl3.breakEvenPolls, 1) + ' polls (' + fmtNum(pl3.bareBreakEvenPolls, 1) + ' with a bare keep-alive read)' +
-        (!pl3.keepsWarm && pl3.needed ? '<br>P is longer than the lifetime: ' + pl3.polls + ' cold polls' + (pl3.lastMissProb > 0 ? ' and a cold resume' : ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one is warm') : '');
+        (!pl3.keepsWarm && pl3.needed && pl3.pollMissProb >= 1 ? '<br>P is longer than the lifetime: ' + pl3.polls + ' cold polls' + (pl3.lastMissProb > 0 ? ' and a cold resume' : ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one is warm') : '') +
+        (!pl3.keepsWarm && pl3.needed && pl3.pollMissProb < 1 ? '<br>P is over ' + M.GPT_SURE_WARM_MIN + ' min: each of the ' + pl3.polls + ' polls misses with probability ' + pct(pl3.pollMissProb) +
+          (pl3.lastMissProb > 0 ? ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one with probability ' + pct(pl3.lastMissProb) : ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one is warm') +
+          ' · with polling = polls × (one poll + ' + pct(pl3.pollMissProb) + ' × miss)' + (pl3.lastMissProb > 0 ? ' + ' + pct(pl3.lastMissProb) + ' × miss' : '') : '');
     }
     setHTML(id + '-fx', fx);
   }
@@ -1591,7 +1595,9 @@
       var colour = r.hypothetical ? '' : (r.dayUsd <= 1e-9 || (r === best && (!yoursRow || best.dayUsd < yoursRow.dayUsd - 1e-9)) ? 'saved' : (r.rewriteUsd > 1e-9 && r.id !== 'heartbeat' ? 'lost' : ''));
       var dayLine = '<b data-p="strip.' + r.id + '.day">' + fmtUsd(r.dayUsd) + '</b> a day' + (crTxt(r.dayUsd) ? ' · ' + crTxt(r.dayUsd) : '');
       var note = r.id === 'heartbeat'
-        ? 'The agent sends a short "are you done?" request every ' + st['strip.heartbeat'] + ' min, so the cache does not expire. Each poll costs one cache read plus a few tokens.'
+        ? 'The agent sends a short "are you done?" request every ' + st['strip.heartbeat'] + ' min' +
+          (S.heartbeatKeepsWarm ? ', so the cache does not expire.' : (S.heartbeatPollMissProb >= 1 ? ', but that is longer than the lifetime, so the polls miss too.'
+            : ', but on GPT about ' + pct(S.heartbeatPollMissProb) + ' of polls more than ' + M.GPT_SURE_WARM_MIN + ' min apart still miss.')) + ' Each poll costs one cache read plus a few tokens.'
         : nbh(noIds(r.note.charAt(0).toUpperCase() + r.note.slice(1))) + '.';
       if (r.dayUsd < -1e-9) note = 'Saves money: the cheaper write price outweighs the re-writes. ' + note;
       if (Math.abs(r.premiumUsd) > 1e-9) note += ' Includes ' + fmtUsd(Math.abs(r.premiumUsd)) + ' a day ' + (r.premiumUsd > 0 ? 'extra' : 'saved') + ' on the write price of ' + fmtK(S.writtenTokensPerDay) + ' tokens written a day.';
@@ -1611,7 +1617,8 @@
     var t = 'Same day, same tabs, before any fix. Your tool keeps the cache <b>' + R.rates.ttlMain + ' min</b>' + (R.rates.ttlSub !== R.rates.ttlMain ? ' (subagents ' + R.rates.ttlSub + ')' : '') + ': <b>' + fmtUsd(yours.monthUsd) + '</b> a month.';
     if (best && best !== yours) t += ' Cheapest real option here: <b>' + (best.id === 'heartbeat' ? 'an agent that polls every ' + st['strip.heartbeat'] + ' min' : nbh(best.label) + ' lifetime') + '</b>, <b class="' + (best.dayUsd < yours.dayUsd - 1e-9 ? 'saved' : '') + '">' + fmtUsd(best.monthUsd) + '</b> a month.';
     setHTML('strip-story', t);
-    setHTML('strip-note', 'Dashed tiles are lifetimes your tool or model does not offer, priced as if they existed. Tokens written a day: ' + fmtK(S.writtenTokensPerDay) + ', from ' + (S.writtenFrom === 'contexts' ? 'the contexts the included tabs build' : 'request traffic (Budget tab)') + '.' + (S.heartbeatKeepsWarm ? '' : ' The poll interval is longer than the lifetime, so polls miss too.'));
+    setHTML('strip-note', 'Dashed tiles are lifetimes your tool or model does not offer, priced as if they existed. Tokens written a day: ' + fmtK(S.writtenTokensPerDay) + ', from ' + (S.writtenFrom === 'contexts' ? 'the contexts the included tabs build' : 'request traffic (Budget tab)') + '.' + (S.heartbeatKeepsWarm ? '' : (S.heartbeatPollMissProb >= 1 ? ' The poll interval is longer than the lifetime, so polls miss too.'
+      : ' On GPT, polls more than ' + M.GPT_SURE_WARM_MIN + ' min apart still miss about ' + pct(S.heartbeatPollMissProb) + ' of the time; poll every ' + M.GPT_SURE_WARM_MIN + ' min or less.')));
     setHTML('strip-fx', 'C = the context of each included event<br>per lifetime: Σ events × (gap > lifetime ? C × (tile write − read) : 0) + tokens written a day × (tile write − your write)<br>tokens written a day = the larger of ' + st['s6.requests'] + ' requests × ' + fmtTok(st['s6.newTok']) + ' new tokens and the contexts the included tabs build (here ' + fmtK(S.writtenTokensPerDay) + ')<br>agent poll: polls = ceil(gap / interval) − 1, each poll = C × read + poll tokens<br>per month = per day × ' + R.days + ' working days');
   }
 

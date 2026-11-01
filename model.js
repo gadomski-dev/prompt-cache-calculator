@@ -646,6 +646,10 @@
     }
     return {
       needed: needed, polls: polls, pollUsd: onePoll, missUsd: miss, missProb: qGap, keepsWarm: keepsWarm,
+      // Chance that each poll misses: 1 when P > TTL; on GPT 1 - hit rate when 5 min < P <= TTL.
+      pollMissProb: qPoll,
+      // Longest interval that keeps the cache surely warm: the TTL on Claude, 5 min (or the TTL if shorter) on GPT.
+      sureWarmIntervalMin: rates.provider === 'openai' ? Math.min(GPT_SURE_WARM_MIN, b.ttl) : b.ttl,
       restMin: rest, lastMissProb: qLast,
       withPollingUsd: withPolling, withoutPollingUsd: withoutPolling,
       savingUsd: withoutPolling - withPolling,
@@ -862,7 +866,7 @@
       });
       return t;
     }
-    var heart = 0, bare = 0, heartWarm = true, yours = 0;
+    var heart = 0, bare = 0, heartWarm = true, heartPollMiss = 0, yours = 0;
     events.forEach(function (e) {
       yours += e.perDay * waitExtraUsd(rates, e.C, e.gap, e.bucket);
       var plan = pollPlan(rates, e.C, e.gap, inp.heartbeat, e.bucket, inp.pollOut, inp.pollIn);
@@ -871,6 +875,7 @@
         heart += e.perDay * plan.withPollingUsd;
         bare += e.perDay * plan0.withPollingUsd;
         if (!plan.keepsWarm) heartWarm = false;
+        heartPollMiss = Math.max(heartPollMiss, plan.pollMissProb);
       }
     });
     var same = rates.ttlMain === rates.ttlSub;
@@ -885,7 +890,7 @@
           : (notOffered(60) ? 'your tool offers no 1-hour lifetime: hypothetical at the 1-hour price' : 'writes at the 1-hour price') },
       { id: 'heartbeat', label: 'Agent poll · ' + inp.heartbeat + ' min', ttl: null, rewriteUsd: heart, premiumUsd: 0, hypothetical: false,
         bareUsd: bare,
-        note: 'the agent polls every ' + inp.heartbeat + ' min at your TTL, each poll = C × read + poll output + poll input' + (heartWarm ? '' : ' (interval longer than TTL: polls miss)') }
+        note: 'the agent polls every ' + inp.heartbeat + ' min at your TTL, each poll = C × read + poll output + poll input' + (heartWarm ? '' : (heartPollMiss >= 1 ? ' (interval longer than TTL: polls miss)' : ' (on GPT, polls more than ' + GPT_SURE_WARM_MIN + ' min apart can still miss)')) }
     ];
     rows.forEach(function (r) {
       r.dayUsd = r.rewriteUsd + r.premiumUsd; r.monthUsd = r.dayUsd * days;
@@ -895,7 +900,7 @@
       dayUsd: yours, monthUsd: yours * days, isYours: true,
       note: 'main ' + rates.ttlMain + ' min, subagents ' + rates.ttlSub + ' min, your write prices',
       shown: !rows.some(function (r) { return r.isYours; }) };
-    return { rows: rows, yours: yoursRow, heartbeatKeepsWarm: heartWarm,
+    return { rows: rows, yours: yoursRow, heartbeatKeepsWarm: heartWarm, heartbeatPollMissProb: heartPollMiss,
       writtenTokensPerDay: useContexts ? contextTok : trafficTok, writtenFrom: useContexts ? 'contexts' : 'traffic' };
   }
 
