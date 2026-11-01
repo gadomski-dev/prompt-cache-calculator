@@ -642,7 +642,7 @@
   var CAM_N = 0;      // on-camera shots; each one's number among them is SHOTS[i].cam (1..CAM_N), notes shots have none
   SHOTS.forEach(function (s) { if (!s.notes) s.cam = ++CAM_N; });
 
-  // Same keys as classic.html CARD_KEYS: decide "sample numbers" vs "your numbers" per tab
+  // Inputs per tab: decide "sample numbers" vs "your numbers" per tab
   var CARD_KEYS = {
     s1: ['s1.minutes', 's1.perDay', 's1.poll', 's1.pollEvery'], s2: ['s2.minutes', 's2.perDay'],
     s3: ['s3.minutes', 's3.perDay', 's3.poll', 's3.pollEvery'],
@@ -665,7 +665,7 @@
   var ctl = [];          // every control: { key, number, range, check, select, hint, wrap }
   var animateNext = false;
 
-  // ------------------------------------------------------------------ formatting (copied from classic.html)
+  // ------------------------------------------------------------------ formatting
   function fmtUsd(x) {
     if (x === Infinity) return '∞';
     if (!isFinite(x)) return '–';
@@ -819,7 +819,7 @@
     }
   }
 
-  // Copied from classic.html onSelect(): a tool or model change re-presets every rate field, keeps a typed context window.
+  // A tool or model change re-presets every rate field, keeps a typed context window.
   function onSelect(key, value) {
     var profile = key === 'g.profile' ? value : st['g.profile'];
     var model = key === 'g.model' ? value : st['g.model'];
@@ -1220,7 +1220,7 @@
     var anim = animateNext; animateNext = false;
     document.body.classList.toggle('gpt', gpt);
 
-    // Visibility rules (same as classic.html)
+    // Visibility rules
     function show(key, on) { controlsOf(key).forEach(function (c) { c.wrap.style.display = on ? '' : 'none'; }); }
     show('g.fillPct', !st['g.useAbs']);
     show('g.absTokens', !!st['g.useAbs']);
