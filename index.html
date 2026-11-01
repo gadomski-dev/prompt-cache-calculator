@@ -1421,8 +1421,10 @@
     $(id + '-bars').style.display = bars ? '' : 'none';
     var note = '';
     if (id !== 's2' && s.poll.needed && s.poll.keepsWarm && isFinite(s.maxWorthwhileWaitMin)) {
-      note = 'Polling every ' + st[id + '.pollEvery'] + ' min pays off for waits up to <b>' + fmtNum(s.maxWorthwhileWaitMin, 1) + ' min</b>.' +
-        ' <span class="mk" tabindex="0" data-tip="A bare keep-alive read (API only, no output tokens) pays off for waits up to ' + fmtNum(s.bareMaxWaitMin, 1) + ' min. Source: F14.">API keep-alive<span class="sr">: pays off for waits up to ' + fmtNum(s.bareMaxWaitMin, 1) + ' min</span></span>';
+      var every = 'every ' + st[id + '.pollEvery'] + ' min';
+      var kaTip = 'A bare keep-alive read (API only, no output tokens) ' + pollPays(s, s.barePartialMaxWaitMin, s.bareMaxWaitMin, false) + ' Source: F14.';
+      note = 'Polling ' + every + ' ' + pollPays(s, s.partialMaxWaitMin, s.maxWorthwhileWaitMin, true) +
+        ' <span class="mk" tabindex="0" data-tip="' + esc(kaTip) + '">API keep-alive<span class="sr">: ' + esc(kaTip) + '</span></span>';
     }
     setHTML(id + '-note', note);
     // Maths
@@ -1436,6 +1438,21 @@
         (!pl3.keepsWarm && pl3.needed ? '<br>P is longer than the lifetime: ' + pl3.polls + ' cold polls' + (pl3.lastMissProb > 0 ? ' and a cold resume' : ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one is warm') : '');
     }
     setHTML(id + '-fx', fx);
+  }
+
+  /**
+   * "pays off for waits up to X min", as a sentence ending in a full stop. On GPT a wait inside the lifetime
+   * misses only 1 - hit rate of the time, so polling can stop paying off there and start again once the gap
+   * passes the lifetime: partialW is the limit inside the window (null on Claude), sureW the limit past it.
+   */
+  function pollPays(s, partialW, sureW, bold) {
+    function b(x) { return bold ? '<b>' + x + '</b>' : x; }
+    var g = R.rates.genMin, ttlWait = s.ttl - g;
+    var sureTxt = sureW > ttlWait + 1e-9 ? 'pays off for waits up to ' + b(fmtNum(sureW, 1) + ' min') : 'does not pay off';
+    if (partialW == null || partialW >= ttlWait - 1e-9) return sureTxt + '.';
+    var inside = partialW > M.GPT_SURE_WARM_MIN - g + 1e-9 ? 'pays off only for waits up to ' + b(fmtNum(partialW, 1) + ' min') : 'does not pay off';
+    return inside + ': within the ' + fmtNum(s.ttl, 2) + '-min lifetime only about ' + pct(1 - R.rates.gptHit) + ' of returns miss. ' +
+      'Past a wait of ' + fmtNum(ttlWait, 1) + ' min a miss is certain, and it ' + (sureTxt === 'does not pay off' ? 'still does not pay off.' : 'again ' + sureTxt + '.');
   }
 
   var LAYOUT_NAME = { hub: 'LLM hub-and-spoke', sequential: 'Sequential single agent', code: 'Orchestration in code' };

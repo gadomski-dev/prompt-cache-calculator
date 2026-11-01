@@ -616,6 +616,8 @@
    * polls = ceil(gap / P) - 1, only if the wait would miss. Each poll misses itself when P > TTL, and the
    * final resume misses only when the rest after the last poll, gap - polls x P, is also longer than the TTL.
    * Polling is cheaper than one miss while polls < miss / one poll, i.e. for gaps up to ceil(break-even) x P.
+   * On GPT a gap between 5 min and the TTL misses only with probability 1 - hit rate, so inside that window
+   * polling is cheaper only while polls < (1 - hit rate) x miss / one poll (partialMaxGapMin, capped at the TTL).
    */
   function pollPlan(rates, C, gap, interval, bucket, pollOut, pollIn) {
     var b = bucketOf(rates, C, bucket);
@@ -634,6 +636,14 @@
     var breakEvenPolls = onePoll > 0 ? miss / onePoll : Infinity;
     var bareRead = usd(C, b.read);
     var bareBreakEvenPolls = bareRead > 0 ? miss / bareRead : Infinity;
+    /** Largest gap whose ceil(gap / P) - 1 polls still cost less than an expected miss of `missCost`. */
+    function limitGap(missCost, perPoll) { return perPoll > 0 ? Math.max(0, Math.ceil(missCost / perPoll - 1e-9)) * P : Infinity; }
+    var partialMax = null, barePartialMax = null;
+    if (rates.provider === 'openai' && b.ttl > GPT_SURE_WARM_MIN) {
+      var qWindow = 1 - rates.gptHit;
+      partialMax = Math.min(b.ttl, limitGap(qWindow * miss, onePoll));
+      barePartialMax = Math.min(b.ttl, limitGap(qWindow * miss, bareRead));
+    }
     return {
       needed: needed, polls: polls, pollUsd: onePoll, missUsd: miss, missProb: qGap, keepsWarm: keepsWarm,
       restMin: rest, lastMissProb: qLast,
@@ -643,7 +653,11 @@
       maxWorthwhileGapMin: isFinite(breakEvenPolls) ? Math.ceil(breakEvenPolls - 1e-9) * P : Infinity,
       // Same with a bare keep-alive read (no poll output, no poll input), the floor any keep-alive costs.
       bareBreakEvenPolls: bareBreakEvenPolls,
-      bareMaxGapMin: isFinite(bareBreakEvenPolls) ? Math.ceil(bareBreakEvenPolls - 1e-9) * P : Infinity
+      bareMaxGapMin: isFinite(bareBreakEvenPolls) ? Math.ceil(bareBreakEvenPolls - 1e-9) * P : Infinity,
+      // GPT only (null on Claude): the same limit for gaps inside the 5-min-to-TTL window, where a miss is not
+      // certain. At or below GPT_SURE_WARM_MIN polling never pays there; at the TTL it pays across the window.
+      partialMaxGapMin: partialMax,
+      barePartialMaxGapMin: barePartialMax
     };
   }
 
@@ -675,6 +689,8 @@
       // The poll limits above are cache gaps; the wait the user enters is the gap minus the generation time.
       maxWorthwhileWaitMin: plan.maxWorthwhileGapMin - (rates.genMin || 0),
       bareMaxWaitMin: plan.bareMaxGapMin - (rates.genMin || 0),
+      partialMaxWaitMin: plan.partialMaxGapMin == null ? null : plan.partialMaxGapMin - (rates.genMin || 0),
+      barePartialMaxWaitMin: plan.barePartialMaxGapMin == null ? null : plan.barePartialMaxGapMin - (rates.genMin || 0),
       events: [{ C: C, gap: gap, perDay: perDay, bucket: 'main' }]
     };
   }

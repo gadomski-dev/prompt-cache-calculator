@@ -281,6 +281,29 @@ test('GPT gaps of 5-30 min miss at 1 - hit rate (E4 77%), not 0', () => {
   close(M.computeAll({ ...M.defaultState('copilot-gpt', 'gpt-5-6-sol'), 's2.minutes': 3 }).s2.perEventUsd, 0);
 });
 
+test('GPT polling break-even inside the lifetime uses the expected miss, (1 - hit rate) x miss', () => {
+  const st = { ...M.defaultState('copilot-gpt', 'gpt-5-6-sol'), 's3.poll': true };
+  const s3 = M.computeAll(st).s3; // wait 12 + 1 = gap 13, inside the 30-min lifetime
+  // one poll = 0.4 x 0.80 + 200 x 30 / 1e6 + 300 x 10 / 1e6 = 0.329; miss = 0.4 x (10 - 0.8) = 3.68
+  close(s3.poll.pollUsd, 0.329);
+  // 3 polls x 0.329 = 0.987 > 0.23 x 3.68 = 0.8464: polling loses at this wait
+  close(s3.perEventUsd, 0.987);
+  close(s3.baseUsd, 0.8464);
+  // expected break-even 0.8464 / 0.329 = 2.57 polls -> gaps up to 3 x 3.5 = 10.5 min (wait 9.5)
+  close(s3.poll.partialMaxGapMin, 10.5);
+  close(s3.partialMaxWaitMin, 9.5);
+  // past the lifetime a miss is certain: 3.68 / 0.329 = 11.19 polls -> gaps up to 12 x 3.5 = 42 min
+  close(s3.poll.maxWorthwhileGapMin, 42);
+  const at = (w) => M.computeAll({ ...st, 's3.minutes': w }).s3;
+  assert.ok(at(9.5).perEventUsd < at(9.5).baseUsd); // gap 10.5: 2 polls 0.658 < 0.8464
+  assert.ok(at(10).perEventUsd > at(10).baseUsd); // gap 11: 3 polls 0.987 > 0.8464
+  assert.ok(at(35).perEventUsd < at(35).baseUsd); // gap 36 > 30: certain miss, 10 polls 3.29 < 3.68
+  // Claude has no partial window
+  assert.equal(R.s3.poll.partialMaxGapMin, null);
+  // a 100% hit rate leaves nothing to save inside the window
+  assert.equal(M.computeAll({ ...st, 'g.gptHit': 100 }).s3.poll.partialMaxGapMin, 0);
+});
+
 test('GPT-6.1 Sol above 272K uses the published long-context row (F46, checked 2026-10-30)', () => {
   const r = M.computeAll(M.defaultState('copilot-gpt', 'gpt-6-1-sol'));
   assert.equal(r.main.long, true);

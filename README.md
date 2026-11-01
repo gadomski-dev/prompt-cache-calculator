@@ -112,6 +112,10 @@ All per-day numbers are multiplied by working days for the month.
      minutes: **80.5 min** with the agent-poll overhead (22.46 polls), **84 min** with a bare
      keep-alive read (24 polls). The card shows both as waits, so it subtracts the generation
      time: waits up to **79.5 min** and **83 min** with the default 1 minute.
+   - on GPT a gap between 5 minutes and the TTL misses only with probability 1 - hit rate, so
+     inside that window polling pays off only while polls < (1 - hit rate) x miss / one poll. On
+     Copilot with GPT-5.6 Sol and the default inputs that is waits up to 9.5 min; from a wait of
+     29 min a miss is certain and polling pays off again, up to 41 min. The card says both.
    The card shows poll cost against miss cost as two bars.
 4. **Orchestrator waiting on subagents** - cost of waiting and handoffs per run, in three layouts.
    `resume(C, gap)` = `C x read` if gap <= TTL, else `C x write`. Inputs: orchestrator context
