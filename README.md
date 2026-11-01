@@ -49,6 +49,8 @@ Cursor yet. Results from either are welcome as issues.
   configurations shown in the episode.
 - Keys `1`-`7` or the left and right arrows switch tab.
 - **Graphite** (key `G`) switches to the dark edition.
+- The single-character keys (`1`-`7`, `G`, `.` and `,`) do nothing while a field, slider or
+  switch has focus.
 
 ## Files
 

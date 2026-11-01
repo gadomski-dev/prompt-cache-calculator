@@ -987,7 +987,7 @@
     document.addEventListener('keydown', function (e) {
       var tg = e.target, t = tg && tg.tagName;
       var inDrawer = !!(tg && tg.closest && tg.closest('#drawer'));
-      // Only typing fields swallow keys; sliders, checkboxes and buttons let the shortcuts through. Esc always works.
+      // Typing fields swallow every key; sliders and checkboxes keep their arrow keys and block the character shortcuts below. Esc always works.
       if ((t === 'INPUT' && tg.type === 'text') || t === 'SELECT' || t === 'TEXTAREA' || (tg && tg.isContentEditable)) {
         if (e.key !== 'Escape') return;
         tg.blur();
@@ -1011,8 +1011,16 @@
         else stepShot(k === 'PageDown' || k === '.' ? 1 : -1);
         return;
       }
+      // Character shortcuts (WCAG 2.1.4) never fire while a slider, switch or other form control has focus:
+      // a speech-input user saying a word with a "g" in it must not flip the edition.
+      if (t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA') return;
       if (k === 'g' || k === 'G') toggleEdition();
-      else if (/^[1-7]$/.test(k)) focusTab(TABS[+k - 1].id);
+      else if (/^[1-7]$/.test(k)) {
+        var before = document.activeElement;
+        focusTab(TABS[+k - 1].id);
+        // A focused control inside the panel that just closed would leave focus on nothing: move it to the new tab.
+        if (before && before !== document.body && !before.offsetParent) $('tab-' + TABS[+k - 1].id).focus();
+      }
     });
     window.addEventListener('hashchange', function () {
       if (location.hash.replace(/^#/, '') === M.encodeState(st)) return;
