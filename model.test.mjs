@@ -63,7 +63,7 @@ test('scenario 3 Long tool call: 12 min, 6 runs a day', () => {
   close(R.s3.poll.breakEvenPolls, 1.92 / 0.0855);
   // Polling is cheaper while polls < 22.46, i.e. up to 22 polls = gaps up to 23 x 3.5 = 80.5 min.
   close(R.s3.poll.maxWorthwhileGapMin, 23 * 3.5);
-  // Bare keep-alive read (no poll overhead, remedies.md 2A): 1.92 / 0.08 = 24 polls -> 24 x 3.5 = 84 min.
+  // Bare keep-alive read (no poll overhead): 1.92 / 0.08 = 24 polls -> 24 x 3.5 = 84 min.
   close(R.s3.poll.bareBreakEvenPolls, 24);
   close(R.s3.poll.bareMaxGapMin, 84);
 });
@@ -104,7 +104,7 @@ test('generation time counts against the TTL (F8): 4.5 min of reading after a 1-
   close(r0.s2.perEventUsd, 0);
 });
 
-test('scenario 4 Orchestrator: reference night from remedies.md ($14.40 hub)', () => {
+test('scenario 4 Orchestrator: reference night ($14.40 hub)', () => {
   const L = R.s4.layouts;
   // hub: 3 x 0.4 x 5 + 12 x 0.1 x 5 + 0.08 x 5 + 0.4 x 5 = 6 + 6 + 0.4 + 2 = 14.40
   close(L.hub.usd, 14.4);
@@ -139,7 +139,7 @@ test('scenario 4 on a Claude Code subscription: subagents stay on 5 min; the 1-h
   assert.equal(r.subscription, true);
 });
 
-test('scenario 4 with an API key on 1 h: every context pays the 1-hour write premium (remedies.md section 3)', () => {
+test('scenario 4 with an API key on 1 h: every context pays the 1-hour write premium', () => {
   const r = M.computeAll(M.defaultState('claude-code-api-1h', 'claude-opus-5-5'));
   const L = r.s4.layouts;
   // hub: 3 x 0.08 + 12 x 0.02 + 0.08 x 8 + 0.08 + premiums 0.4 x 3 + 12 x 0.1 x 3 = 1.20 + 1.20 + 3.60 = 6.00
@@ -148,7 +148,7 @@ test('scenario 4 with an API key on 1 h: every context pays the 1-hour write pre
   close(L.code.usd, 5.12);
   // sequential: 12 x 0.05 + 0.64 + 0.05 + 1.20 = 2.49
   close(L.sequential.usd, 2.49);
-  // a 1-hour spoke with one wait: 0.02 read + 0.30 premium = 0.32 (polling nets more, remedies.md section 3)
+  // a 1-hour spoke with one wait: 0.02 read + 0.30 premium = 0.32 (polling nets more)
   close(M.resumeUsd(r.rates, 100000, 8, 'sub') + 0.1 * M.ttlPremiumPerMtok(r.rates, 100000, 'sub'), 0.32);
 });
 

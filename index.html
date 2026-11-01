@@ -928,7 +928,7 @@
     var layoutName = { hub: 'LLM hub-and-spoke', sequential: 'Sequential single agent', code: 'Orchestration in code' }[s.layout];
     totals('s4-tot', s.perDayUsd, s.perMonthUsd, 'for "' + layoutName + '" × ' + st['s4.runs'] + ' run(s) a day', s.missPerDayUsd > 1e-12 ? 'miss' : 'warmc');
     setHTML('s4-fx', 'resume(C, gap) = C × read if gap ≤ TTL, else C × write · gap = generation + wait · hub misses once per wave when D > TTL main · subagents use the subagent TTL · sequential context = (C_s + C_o) / 2 = ' + fmtK(s.cAvg) +
-      ' · on a 1-hour bucket each context also pays (write − 5-min write) once (remedies.md section 3) · code orchestration has no waiting LLM hub; a fresh patcher and a rubber duck start from the H-token handoff file · "Include in my day" adds only the re-write part (' + fmtUsd(s.missPerDayUsd) + ' per day) to Monthly budget');
+      ' · on a 1-hour bucket each context also pays (write − 5-min write) once · code orchestration has no waiting LLM hub; a fresh patcher and a rubber duck start from the H-token handoff file · "Include in my day" adds only the re-write part (' + fmtUsd(s.missPerDayUsd) + ' per day) to Monthly budget');
   }
 
   function renderS5() {

@@ -268,10 +268,10 @@
     }
   ];
 
-  // Assumptions that are not vendor facts. Source: remedies.md section 0 "Poll overhead".
+  // Assumptions that are not vendor facts: the calculator's own estimate of what one poll adds.
   var ASSUMPTIONS = {
-    pollOutputTokens: { value: 200, status: 'assumption', source: 'remedies.md section 0: a poll adds about 200 output tokens' },
-    pollNewInputTokens: { value: 300, status: 'assumption', source: 'remedies.md section 0: a poll adds about 300 new input tokens' },
+    pollOutputTokens: { value: 200, status: 'assumption', source: 'Our estimate: a short poll turn adds about 200 output tokens' },
+    pollNewInputTokens: { value: 300, status: 'assumption', source: 'Our estimate: a short poll turn adds about 300 new input tokens' },
     // 4 minutes is the interval of Anthropic's API keep-alive (F14). F14's keep-alive bills only C x read;
     // the agent poll priced here also pays its output and new input, because Copilot, Cursor and Claude Code
     // cannot send an F14 keep-alive.
@@ -641,7 +641,7 @@
       savingUsd: withoutPolling - withPolling,
       breakEvenPolls: breakEvenPolls,
       maxWorthwhileGapMin: isFinite(breakEvenPolls) ? Math.ceil(breakEvenPolls - 1e-9) * P : Infinity,
-      // Same with a bare keep-alive read (no poll output, no poll input), as remedies.md section 2A counts it.
+      // Same with a bare keep-alive read (no poll output, no poll input), the floor any keep-alive costs.
       bareBreakEvenPolls: bareBreakEvenPolls,
       bareMaxGapMin: isFinite(bareBreakEvenPolls) ? Math.ceil(bareBreakEvenPolls - 1e-9) * P : Infinity
     };
@@ -678,9 +678,9 @@
 
   /**
    * Scenario 4. Cost of waiting and handoffs per run (resume costs, warm or cold, plus handoff seeds).
-   * Genuinely new input is left out because it is the same in every layout at the 5-minute write price
-   * (remedies.md section 0). On a longer-TTL bucket every context is written at a higher price; that
-   * premium over the 5-minute write is added per context (remedies.md section 3: hub on 1 h = 0.4 x $3).
+   * Genuinely new input is left out because it is the same in every layout at the 5-minute write price.
+   * On a longer-TTL bucket every context is written at a higher price; that
+   * premium over the 5-minute write is added per context (hub of 400K on 1 h = 0.4 x $3 = $1.20).
    */
   function orchestratorScenario(rates, inp, days) {
     var Co = inp.co, W = inp.waves, S = inp.subs, D = inp.dur, Cs = inp.cs, Tw = inp.wait,
