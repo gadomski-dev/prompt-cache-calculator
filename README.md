@@ -13,8 +13,6 @@ an expired prompt cache costs and how to keep it warm.
 Download or clone the repository and double-click `index.html`. No build step, no dependencies,
 no network: fonts are bundled in `fonts/`.
 
-`classic.html` is the older layout, every scenario on one long page. Both read the same link.
-
 ## How to read it
 
 - **Pick your tool, model and context size** at the top. The header shows what one cache miss
@@ -54,7 +52,6 @@ Cursor yet. Results from either are welcome as issues.
 | File | What it is |
 |---|---|
 | `index.html` | The page. Loads `model.js`; inline CSS and JS. |
-| `classic.html` | The older one-page layout, same model and link format. |
 | `model.js` | Pure maths, no DOM. Browser global `CacheModel`, Node `module.exports`. Constants copied from `research/constants.json` with status and fact ids (a `file://` page cannot fetch JSON). |
 | `model.test.mjs` | `node:test` tests with hand-computed expected values for every scenario. Run `node --test model.test.mjs` (38 tests). |
 | `research/` | `facts.md` (every fact id the page cites, with source and quote) and `constants.json` (the values `model.js` copies). |
