@@ -110,7 +110,8 @@ All per-day numbers are multiplied by working days for the month.
      cost = polls x (one poll + miss) + (rest > TTL ? miss : 0);
    - break-even polls = miss / one poll; polling is cheaper for gaps up to `ceil(break-even) x P`
      minutes: **80.5 min** with the agent-poll overhead (22.46 polls), **84 min** with a bare
-     keep-alive read (24 polls). The card shows both.
+     keep-alive read (24 polls). The card shows both as waits, so it subtracts the generation
+     time: waits up to **79.5 min** and **83 min** with the default 1 minute.
    The card shows poll cost against miss cost as two bars.
 4. **Orchestrator waiting on subagents** - cost of waiting and handoffs per run, in three layouts.
    `resume(C, gap)` = `C x read` if gap <= TTL, else `C x write`. Inputs: orchestrator context

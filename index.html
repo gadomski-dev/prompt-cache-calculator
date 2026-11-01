@@ -1420,9 +1420,9 @@
     setHTML(id + '-bars', bars);
     $(id + '-bars').style.display = bars ? '' : 'none';
     var note = '';
-    if (id !== 's2' && s.poll.needed && s.poll.keepsWarm && isFinite(s.poll.maxWorthwhileGapMin)) {
-      note = 'Polling every ' + st[id + '.pollEvery'] + ' min pays off for waits up to <b>' + fmtNum(s.poll.maxWorthwhileGapMin, 1) + ' min</b>.' +
-        ' <span class="mk" tabindex="0" data-tip="A bare keep-alive read (API only, no output tokens) pays off up to ' + fmtNum(s.poll.bareMaxGapMin, 1) + ' min. Source: F14.">API keep-alive<span class="sr">: pays off up to ' + fmtNum(s.poll.bareMaxGapMin, 1) + ' min</span></span>';
+    if (id !== 's2' && s.poll.needed && s.poll.keepsWarm && isFinite(s.maxWorthwhileWaitMin)) {
+      note = 'Polling every ' + st[id + '.pollEvery'] + ' min pays off for waits up to <b>' + fmtNum(s.maxWorthwhileWaitMin, 1) + ' min</b>.' +
+        ' <span class="mk" tabindex="0" data-tip="A bare keep-alive read (API only, no output tokens) pays off for waits up to ' + fmtNum(s.bareMaxWaitMin, 1) + ' min. Source: F14.">API keep-alive<span class="sr">: pays off for waits up to ' + fmtNum(s.bareMaxWaitMin, 1) + ' min</span></span>';
     }
     setHTML(id + '-note', note);
     // Maths

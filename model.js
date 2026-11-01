@@ -672,6 +672,9 @@
       ttl: b.ttl, gap: gap, genMin: rates.genMin, missProb: q, warm: q === 0, partial: q > 0 && q < 1, longContext: b.long,
       baseUsd: base, perEventUsd: perEvent, perDayUsd: perEvent * perDay, perMonthUsd: perEvent * perDay * days,
       remedyOn: !!poll, poll: plan,
+      // The poll limits above are cache gaps; the wait the user enters is the gap minus the generation time.
+      maxWorthwhileWaitMin: plan.maxWorthwhileGapMin - (rates.genMin || 0),
+      bareMaxWaitMin: plan.bareMaxGapMin - (rates.genMin || 0),
       events: [{ C: C, gap: gap, perDay: perDay, bucket: 'main' }]
     };
   }

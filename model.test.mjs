@@ -68,6 +68,17 @@ test('scenario 3 Long tool call: 12 min, 6 runs a day', () => {
   close(R.s3.poll.bareMaxGapMin, 84);
 });
 
+test('the polling limit shown as a wait subtracts the generation time (gap = wait + 1 min)', () => {
+  // gap 80.5 = wait 79.5; the card labels the slider value "wait", so it must show 79.5, not 80.5
+  close(R.s3.maxWorthwhileWaitMin, 79.5);
+  close(R.s3.bareMaxWaitMin, 83);
+  const at = (w) => M.computeAll({ ...D, 's3.minutes': w, 's3.poll': true }).s3;
+  // wait 79.5 -> gap 80.5 -> 22 polls x 0.0855 = 1.881 < 1.92
+  assert.ok(at(79.5).perEventUsd < at(79.5).baseUsd);
+  // wait 80 -> gap 81 -> 23 polls x 0.0855 = 1.9665 > 1.92
+  assert.ok(at(80).perEventUsd > at(80).baseUsd);
+});
+
 test('scenario 3 with the background-run remedy on', () => {
   const r = M.computeAll({ ...D, 's3.poll': true });
   close(r.s3.perEventUsd, 0.2565);
