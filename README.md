@@ -162,8 +162,9 @@ contexts the included scenarios build: main conversation C once, scenario 4 per 
 scenario 5 N agents. Defaults: 400K + 400K + 12 x 100K + 5 x 180K = 2.9M tokens, so the 1-hour
 premium is 2.9 x $3 = $8.70 a day (it was $2.40 on 0.8M of request traffic alone).
 5 min uses the 5-minute write; 30 min is real for GPT-5.6+ and **hypothetical** at the 5-minute
-price for Claude (Anthropic has no 30-minute tier); 1 h uses the 1-hour write; 5 min and 1 h are
-hypothetical on GPT. Hypothetical tiles are dashed and carry a badge. When main and subagent TTLs differ (Claude Code subscription), an extra **Your
+price for Claude (Anthropic has no 30-minute tier); 1 h uses the 1-hour write and is hypothetical
+in Copilot (no 1-hour write price listed, F47; the experimental VS Code 1-hour setting skips
+Claude 5.x, F50) and in Cursor (no TTL setting, F67, F68); 5 min and 1 h are hypothetical on GPT. Hypothetical tiles are dashed and carry a badge. When main and subagent TTLs differ (Claude Code subscription), an extra **Your
 setup** tile shows the real per-bucket day. **Agent poll** = an agent that polls every 4 minutes
 at your TTL, priced like the poll above; 4 minutes is the interval of Anthropic's API keep-alive
 (F14), and the tile note also gives the price of a bare F14 keep-alive (C x read only), which
@@ -192,7 +193,7 @@ days, $200 budget.
 | 4 Orchestrator | C_o 400K, 3 x 4 subagents of 100K, D 12, wait 7, H 80K, 1 problem of 8 min, 1 run | hub $14.40 per run; sequential $16.65; code $6.80 | $14.40 | $316.80 |
 | 5 Parallel agents | 5 agents, 3 min each, 180K, 1 h a day | $17.28 per hour; largest warm N = 2 | $17.28 | $380.16 |
 | 6 Monthly budget | 400 requests, 50% prefix, 2,000 new, 800 output | budget lasts 2.1 days (7.6 warm, 0.6 no caching); 72% of spend is re-writes | $95.52 | $2,101 (warm $580.80, no caching $7,251) |
-| TTL comparison | agent poll every 4 min | 5 min $69.12/day; 30 min $0 (hypothetical); 1 h $8.70; agent poll $8.01 (bare keep-alive read $7.28) | | |
+| TTL comparison | agent poll every 4 min | 5 min $69.12/day; 30 min $0 (hypothetical); 1 h $8.70 (hypothetical in Copilot); agent poll $8.01 (bare keep-alive read $7.28) | | |
 
 The orchestrator defaults describe one reference night of agent work ($14.40 for the hub).
 On the Claude Code subscription the same inputs give hub $7.92, sequential $2.25, code $6.80

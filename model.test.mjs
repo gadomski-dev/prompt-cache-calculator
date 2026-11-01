@@ -425,12 +425,20 @@ test('GPT-5.6 Luna long context starts at 272K in Cursor, 200K in Copilot', () =
   assert.equal(at250('copilot-gpt').main.long, true);
 });
 
-test('TTL strip: no 1-hour lifetime in Cursor, still one in Claude Code', () => {
+test('TTL strip: no 1-hour lifetime in Cursor or Copilot, still one in Claude Code', () => {
   const row = (p) => M.computeAll(M.defaultState(p, 'claude-opus-5-5')).strip.rows.find((r) => r.id === 'ttl60');
   assert.equal(row('cursor-claude').hypothetical, true);
   assert.equal(row('cursor-teams-claude').hypothetical, true);
   assert.equal(row('claude-code-api-5m').hypothetical, false);
-  assert.equal(row('copilot-claude').hypothetical, false); // unchanged: scope of this fix is Cursor
+  // F47: Copilot lists no 1-hour write price; F50: its 1-hour setting skips Claude 5.x
+  assert.equal(row('copilot-claude').hypothetical, true);
+  assert.match(row('copilot-claude').note, /no 1-hour write price/);
+  assert.equal(M.fieldStatus('copilot-claude', 'claude-opus-5-5')['r.write1h'].status, 'unverified');
+  assert.equal(M.fieldStatus('claude-code-api-5m', 'claude-opus-5-5')['r.write1h'], undefined);
+  // with a 2-min poll the 1 h tile ($8.70/day) is no longer a "real option"; the agent poll is the cheapest real one
+  const r = M.computeAll({ ...M.defaultState('copilot-claude', 'claude-opus-5-5'), 'strip.heartbeat': 2 });
+  const best = r.strip.rows.filter((x) => !x.hypothetical).sort((a, b) => a.dayUsd - b.dayUsd)[0];
+  assert.equal(best.id, 'heartbeat');
 });
 
 test('Cursor context windows: default window warning, documented windows carry no badge', () => {

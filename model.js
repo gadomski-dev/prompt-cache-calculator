@@ -159,6 +159,10 @@
 
   // Cursor facts shared by both Cursor profiles (cursor.com/docs, fetched 2026-11-01).
   var CURSOR_OFFERED_TTLS = { anthropic: [5], openai: [30] }; // F65, F67, F68: no TTL setting, 1 h rejected
+  // F47: Copilot lists only the 5-minute (1.25x) Claude write price. F50: the VS Code 1-hour setting is experimental,
+  // off by default and skips Claude 5.x; E5: requests stay on 5 minutes even with it on.
+  var COPILOT_OFFERED_TTLS = { anthropic: [5], openai: [30] };
+  var COPILOT_NO_1H = 'Copilot lists no 1-hour write price (F47) and its experimental 1-hour setting is off by default and skips Claude 5.x (F50)';
   var CURSOR_VERIFIED_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-1',
     'claude-opus-5', 'claude-opus-4-8', 'gpt-5-6-sol', 'gpt-5-6-luna', 'gpt-5-3-codex'];
   var CURSOR_NOT_OFFERED = ['claude-opus-4-5', 'gpt-6-1-sol', 'gpt-6-astra'];
@@ -207,7 +211,7 @@
       tool: 'cursor', billing: 'usd_per_token', usd_per_credit: null,
       ttl_minutes: { anthropic: 5, openai: 30 },
       // Lifetimes the user can actually get in this tool; any other tile in the TTL strip is hypothetical.
-      offered_ttls: CURSOR_OFFERED_TTLS,
+      offered_ttls: CURSOR_OFFERED_TTLS, ttl_1h_facts: ['F65', 'F67', 'F68'],
       flat_surcharge_per_mtok: 0, ttl_configurable: false,
       // Cursor's Models & Pricing table (fetched 2026-11-01) lists these at the same rates as model.js.
       verified_models: CURSOR_VERIFIED_MODELS,
@@ -225,7 +229,7 @@
       label: 'Cursor Teams/Enterprise with Claude or GPT',
       tool: 'cursor', billing: 'usd_per_token', usd_per_credit: null,
       ttl_minutes: { anthropic: 5, openai: 30 },
-      offered_ttls: CURSOR_OFFERED_TTLS,
+      offered_ttls: CURSOR_OFFERED_TTLS, ttl_1h_facts: ['F65', 'F67', 'F68'],
       // Cursor Token Rate exclusion list (models-and-pricing, fetched 2026-11-01): of the models here, Haiku 5.5 and GPT-5.6 Luna.
       flat_surcharge_per_mtok: 0.25, surcharge_exempt_models: ['claude-haiku-5-5', 'gpt-5-6-luna'], ttl_configurable: false,
       verified_models: CURSOR_VERIFIED_MODELS,
@@ -244,6 +248,7 @@
       label: 'GitHub Copilot (AI credits) with Claude',
       tool: 'copilot', billing: 'ai_credits', usd_per_credit: 0.01,
       ttl_minutes: { anthropic: 5, openai: 30 },
+      offered_ttls: COPILOT_OFFERED_TTLS, ttl_1h_note: COPILOT_NO_1H, ttl_1h_facts: ['F47', 'F50', 'E5'],
       flat_surcharge_per_mtok: 0, ttl_configurable: false,
       included_credits: { pro: 1500, pro_plus: 7000, max: 20000, business_per_user: 1900, enterprise_per_user: 3900 },
       // F45 (Claude rates) and F46 (GPT rates) in the Copilot price table. Haiku 5.5, Opus 4.5 and GPT-6 Astra are not in it.
@@ -259,6 +264,7 @@
       label: 'GitHub Copilot (AI credits) with GPT-5.6 or later',
       tool: 'copilot', billing: 'ai_credits', usd_per_credit: 0.01,
       ttl_minutes: { anthropic: null, openai: 30 },
+      offered_ttls: COPILOT_OFFERED_TTLS,
       flat_surcharge_per_mtok: 0, ttl_configurable: false,
       included_credits: { pro: 1500, pro_plus: 7000, max: 20000, business_per_user: 1900, enterprise_per_user: 3900 },
       verified_models: ['gpt-5-6-sol', 'gpt-6-1-sol', 'gpt-5-6-luna', 'gpt-5-3-codex'], // F46
@@ -425,6 +431,12 @@
     if (m.long_context && m.long_context.unverified_fields) {
       m.long_context.unverified_fields.forEach(function (k) { out[k] = unv(m.long_context.unverified_note, m.fact_ids); });
     }
+    if (m.provider === 'anthropic' && p.offered_ttls && (p.offered_ttls.anthropic || []).indexOf(60) < 0) {
+      var no1h = p.ttl_1h_note || 'Your tool offers no 1-hour lifetime';
+      var w1h = unv(no1h.charAt(0).toUpperCase() + no1h.slice(1) + '. Anthropic\'s 1-hour price is used only for the hypothetical 1 h tile on the Lifetimes tab.', p.ttl_1h_facts || []);
+      out['r.write1h'] = w1h;
+      if (m.long_context) out['r.lcWrite1h'] = w1h;
+    }
     var cw = p.context_windows && p.context_windows[m.id];
     if (cw) {
       // Cursor documents the window: no badge; computeAll warns when C passes the default window.
@@ -532,6 +544,8 @@
       provider: m ? m.provider : 'anthropic',
       // Lifetimes the tool lets the user have, or null when any tier the provider sells is reachable.
       offeredTtls: p && p.offered_ttls && m ? p.offered_ttls[m.provider] || null : null,
+      // Why the tool has no 1-hour lifetime, for the hypothetical tile (null = the generic sentence).
+      no1hNote: p && p.ttl_1h_note || null,
       // F8: the TTL runs from the start of the previous request, so its generation time counts.
       genMin: Math.max(0, num(st['g.genMin'])),
       // GPT only: share of requests 5 min to TTL after the previous one that still hit (E2, E4, F80).
@@ -887,7 +901,7 @@
         note: openai ? 'writes at your (30-minute) write price' : 'no 30-minute tier on Claude: hypothetical at the 5-minute price' },
       { id: 'ttl60', label: '1 h', ttl: 60, rewriteUsd: at(60), premiumUsd: premium(60), hypothetical: openai || notOffered(60),
         note: openai ? 'no 1-hour tier on GPT: hypothetical at your write price'
-          : (notOffered(60) ? 'your tool offers no 1-hour lifetime: hypothetical at the 1-hour price' : 'writes at the 1-hour price') },
+          : (notOffered(60) ? (rates.no1hNote || 'your tool offers no 1-hour lifetime') + ': hypothetical at the 1-hour price' : 'writes at the 1-hour price') },
       { id: 'heartbeat', label: 'Agent poll · ' + inp.heartbeat + ' min', ttl: null, rewriteUsd: heart, premiumUsd: 0, hypothetical: false,
         bareUsd: bare,
         note: 'the agent polls every ' + inp.heartbeat + ' min at your TTL, each poll = C × read + poll output + poll input' + (heartWarm ? '' : (heartPollMiss >= 1 ? ' (interval longer than TTL: polls miss)' : ' (on GPT, polls more than ' + GPT_SURE_WARM_MIN + ' min apart can still miss)')) }
