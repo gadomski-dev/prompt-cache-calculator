@@ -247,9 +247,10 @@ Badged "assumption - edit me" (the calculator's own assumptions, not vendor fact
 
 Badged "community-measured": **GPT hit rate 77%** for gaps of 5 minutes to the TTL (E4; E2 ~95%).
 
-Not modelled (also stated on the Monthly card): Copilot plan allowances and discounts (F42, F43, F49), Cursor regional +10% and
-US-only inference x1.1 (F12, F63), usage credits over the subscription limit (rate unverified,
-open question 6), and whether a Copilot 1-hour write would be billed at 2x (open question 1).
+Not modelled (also stated on the Budget tab): Copilot plan allowances and discounts (F42, F43, F49),
+Cursor fast mode (2x every price) and regional or US-only endpoints +10% (F63), US-only inference
+x1.1 on the Claude API (F12), usage credits over the subscription limit (rate unverified, open
+question 6), and whether a Copilot 1-hour write would be billed at 2x (open question 1).
 Editing a field turns its badge into "your value"; editing a card's inputs turns its
 "placeholder - set your own" badge into "your numbers".
 
