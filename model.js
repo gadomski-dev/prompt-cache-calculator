@@ -484,7 +484,7 @@
     's5.n': 5, 's5.r': 3, 's5.ca': 180000, 's5.hours': 1, 's5.inc': true,
     's6.requests': 400, 's6.avgPct': 50, 's6.newTok': 2000, 's6.outTok': 800,
     'strip.heartbeat': ASSUMPTIONS.heartbeatMinutes.value,
-    'ui.focus': 's1', 'ui.rec': false
+    'ui.focus': 's1'
   };
 
   function defaultState(profileId, modelId) {

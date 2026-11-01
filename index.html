@@ -228,29 +228,7 @@
   .tab[aria-selected="true"] .ti { position: relative; }
   .tab[aria-selected="true"] .ti::before { content: ""; position: absolute; left: -12px; top: 50%; width: 6px; height: 6px; margin-top: -4px; background: var(--gd-signal); }
 
-  /* slim tab rail on the brand line, recording mode only (the full rail is hidden there); takes no extra height */
-  .recrail { display: none; gap: 3px; padding: 3px; background: var(--band); border: 1px solid var(--line-2); border-radius: var(--r-pill); }
-  body.rec .recrail { display: flex; }
-  .recrail .rt { display: inline-flex; align-items: baseline; gap: 8px; border: 0; background: transparent; cursor: pointer; border-radius: var(--r-pill);
-    padding: 5px 15px 5px 21px; color: var(--text-2); font-weight: 500; font-size: 16px; line-height: 1; white-space: nowrap; transition: color var(--dur-tick) var(--ease-calm), background var(--dur-tick) var(--ease-calm); }
-  .recrail .rt:hover { color: var(--text); }
-  .recrail .rt .ti { position: relative; font-family: var(--font-mono); font-size: 13px; letter-spacing: .06em; }
-  .recrail .rt[aria-current="true"] { background: var(--inv-bg); color: var(--inv-fg); }
-  [data-edition="graphite"] .recrail .rt[aria-current="true"] { background: var(--gd-g600); color: var(--gd-paper); }
-  .recrail .rt[aria-current="true"] .ti::before { content: ""; position: absolute; left: -12px; top: 50%; width: 6px; height: 6px; margin-top: -4px; background: var(--gd-signal); }
-
-  /* episode shots: quiet indicator (recording mode) and the jump list.
-     Pinned to the frame's bottom edge so it clears the tallest result card (Orchestrator ends at y 1047 of 1080). */
-  .recdock { display: none; position: fixed; bottom: 3px; right: 13px; z-index: 40; align-items: flex-end; gap: 8px; }
-  body.rec .recdock { display: flex; }
-  .shotind { border: 0; cursor: pointer; font-family: var(--font-text); font-weight: 500; font-size: 14px; line-height: 1; letter-spacing: .04em;
-    font-variant-caps: all-small-caps; color: var(--text-2); padding: 4px 11px; border-radius: var(--r-pill);
-    background: color-mix(in srgb, var(--page) 86%, transparent); box-shadow: inset 0 0 0 1px var(--line); white-space: nowrap; }
-  .shotind:hover, .shotind[aria-expanded="true"] { color: var(--text); box-shadow: inset 0 0 0 1px var(--line-2); }
-  .shotind .tnum { font-variant-numeric: tabular-nums; }
-  /* On camera the indicator stays invisible (still clickable): it shows for 2.5 s after a shot step, on hover and while its list is open */
-  body.rec .shotind { opacity: 0; transition: opacity var(--dur-step) var(--ease-calm), color var(--dur-tick) var(--ease-calm); }
-  body.rec .recdock.peek .shotind, body.rec .shotind:hover, body.rec .shotind:focus-visible, body.rec .shotind[aria-expanded="true"] { opacity: 1; }
+  /* episode scenes: the jump list opened from the header */
   .shotpop { position: fixed; z-index: 45; width: 360px; max-height: calc(100vh - 80px); overflow: auto; padding: 8px; background: var(--card);
     border: 1px solid var(--line-2); border-radius: var(--r-card); box-shadow: var(--shadow-card), 0 21px 55px -21px rgba(0,0,0,.35); }
   .shotpop .sph { padding: 6px 10px 8px; font-size: 13px; line-height: 18px; color: var(--text-2); }
@@ -270,7 +248,6 @@
   h2 { font-family: var(--font-display); font-weight: 700; font-size: 34px; line-height: 1.05; letter-spacing: -.035em; margin: 0; white-space: nowrap; }
   .psub { color: var(--text-2); font-size: 17px; line-height: 28px; }
   .phead .mk { align-self: center; margin-left: auto; }
-  .reccap { display: none; }
   .pgrid { display: grid; grid-template-columns: 520px minmax(0, 1fr); gap: 21px; align-items: start; }
   .tabpanel.anim { animation: fadein var(--dur-step) var(--ease-calm) both; }
   @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
@@ -393,75 +370,6 @@
   .foot a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
   .foot { margin: 34px 0 34px; padding-top: 21px; border-top: 1px solid var(--line); display: grid; grid-template-columns: 1fr auto; gap: 8px 34px; font-size: 14px; line-height: 22px; color: var(--text-2); }
   .foot .tele { align-self: start; }
-  .exit { display: none; opacity: 0; background: var(--card); }
-  .exit:hover, .exit:focus { opacity: 1; }
-
-  /* ------------------------------------------------------------ recording mode: 1920 x 1080, no inputs */
-  body.rec .actions, body.rec .lede, body.rec .drawer, body.rec .rail, body.rec .inp, body.rec details.maths,
-  body.rec .foot, body.rec .phead .psub, body.rec .phead .mk, body.rec .gcapr.edit, body.rec .foot2.hideRec { display: none !important; }
-  body.rec .exit { display: inline-flex; height: 26px; padding: 0 13px; }
-  body.rec .hd { padding: 21px 0 13px; }
-  body.rec .row2 { margin-top: 16px; }
-  body.rec h1 { font-size: 44px; }
-  body.rec .globals select, body.rec .globals input { pointer-events: none; border-color: var(--line-2); }
-  body.rec .selw::after { display: none; }
-  body.rec select { padding-right: 13px; }
-  body.rec .missbar { padding: 14px 26px; }
-  body.rec .missbar .mlab { font-size: 21px; }
-  body.rec .missbar .mval { font-size: 55px; }
-  body.rec .missbar .mpair { font-size: 19px; line-height: 26px; }
-  body.rec .missbar .mfx { font-size: 15px; }
-  body.rec .missbar .warn { font-size: 16px; line-height: 22px; }
-  body.rec .phead { margin: 26px 0 16px; flex-direction: column; align-items: flex-start; gap: 8px; }
-  body.rec h2 { font-size: 55px; line-height: .95; }
-  body.rec .reccap { display: block; font-size: 21px; line-height: 1.4; font-weight: 500; color: var(--text-2); }
-  body.rec .pgrid { grid-template-columns: minmax(0, 1fr); }
-  body.rec .res { padding: 30px 44px 30px; }
-  body.rec .hval { font-size: 176px; }
-  body.rec .kpi .kv { font-size: 64px; }
-  body.rec .kpi .kc, body.rec .hsub { font-size: 17px; }
-  body.rec .k { font-size: 15px; }
-  body.rec .story { font-size: 28px; max-width: 76ch; margin-top: 26px; }
-  body.rec .tl .tlab { font-size: 19px; }
-  body.rec .tl .blab { font-size: 16px; }
-  body.rec .tl .track { height: 44px; }
-  body.rec .tl .seg { top: 14px; height: 16px; }
-  body.rec .tl .poll { top: 16px; width: 12px; height: 12px; margin-left: -6px; }
-  body.rec .legend { font-size: 18px; line-height: 26px; }
-  body.rec .bar { grid-template-columns: 420px minmax(0, 1fr) 210px; }
-  body.rec .bar .bl { font-size: 24px; line-height: 30px; }
-  body.rec .bar .track { height: 40px; }
-  body.rec .bar .bv { font-size: 38px; }
-  body.rec .foot2 { font-size: 20px; line-height: 1.45; }
-  body.rec .dot { width: 64px; height: 64px; font-size: 24px; }
-  body.rec .limit { height: 84px; width: 3px; }
-  body.rec .limit span { font-size: 17px; }
-  body.rec .tile .tt { font-size: 24px; }
-  body.rec .tile .tv { font-size: clamp(34px, 24cqi, 89px); }
-  body.rec .tile .td { font-size: 17px; line-height: 24px; }
-  body.rec .tile .tn2 { font-size: 16px; line-height: 22px; }
-  body.rec .mk { font-size: 13px; }
-  body.rec .share .sv { font-size: 89px; }
-  body.rec .stack { height: 40px; }
-  body.rec .missbar .mfx, body.rec .mk.q { display: none; }
-  body.rec .missbar .mpair .pl { white-space: nowrap; }
-  body.rec .missbar .warn { max-width: 540px; }
-  body.rec .bar .bl .swd { font-size: 16px; line-height: 20px; }
-  /* tabs that carry more visuals keep a smaller hero so the frame fits 1080 px */
-  body.rec #panel-s3 .hval, body.rec #panel-s4 .hval { font-size: 130px; }
-  body.rec #panel-s3 .story, body.rec #panel-s4 .story { font-size: 24px; margin-top: 18px; }
-  body.rec #panel-s3 .vis, body.rec #panel-s4 .vis { margin-top: 18px; }
-  body.rec #panel-s3 .tl { padding: 26px 0 22px; }
-  body.rec #panel-s3 .tl .track { height: 34px; }
-  body.rec #panel-s3 .tl .seg { top: 10px; height: 14px; }
-  body.rec #panel-s3 .tl .poll { top: 11px; }
-  body.rec #panel-s3 .bars, body.rec #panel-s4 .bars { gap: 4px; }
-  body.rec #panel-s3 .bar .track, body.rec #panel-s4 .bar .track { height: 34px; }
-  body.rec #panel-s3 .bar .bv, body.rec #panel-s4 .bar .bv { font-size: 34px; }
-  body.rec #panel-s3 .foot2 { font-size: 18px; margin-top: 8px; }
-  body.rec #panel-s4 .bar .bl { line-height: 26px; gap: 0; }
-  body.rec #panel-s4 .bar { padding-top: 4px; padding-bottom: 4px; }
-
   /* ------------------------------------------------------------ narrower screens (viewers' laptops, tablets, phones) */
   @media (max-width: 1680px) {
     .row2 { flex-direction: column; align-items: stretch; gap: 21px; }
@@ -492,7 +400,7 @@
   @media (max-width: 720px) {
     .wrap { padding: 0 16px; }
     .row1 { flex-wrap: wrap; gap: 13px; }
-    .brand .tele, #btnRec { display: none; }
+    .brand .tele { display: none; }
     .actions { flex-wrap: wrap; }
     h1 { font-size: 36px; }
     .globals { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
@@ -547,9 +455,7 @@
         <button class="btn" id="btnReset" type="button">Reset</button>
         <button class="btn" id="btnShots" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="shotPop" title="Scenes from the episode. PgDn / PgUp (or . and ,) step through them">Scenes <kbd aria-hidden="true">PgDn</kbd></button>
         <button class="btn" id="btnEd" type="button" title="Switch White / Graphite edition (key G)">Graphite <kbd>G</kbd></button>
-        <button class="btn primary" id="btnRec" type="button" aria-pressed="false" title="Keys 1-7 or arrow left / right switch tab, PgDn / PgUp step through the episode scenes, Esc exits">Recording mode <kbd>R</kbd></button>
       </div>
-      <nav class="recrail" id="recRail" aria-label="Scenarios"></nav>
     </div>
     <div class="row2">
       <div>
@@ -614,10 +520,6 @@
     <div class="tele" id="asof"></div>
   </footer>
 </main>
-<div class="recdock" id="recDock">
-  <button class="btn exit" id="btnExit" type="button">Exit recording (Esc)</button>
-  <button class="shotind" id="shotInd" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="shotPop"></button>
-</div>
 <div class="shotpop" id="shotPop" role="dialog" aria-label="Scenes from the episode" hidden>
   <div class="sph">Scenes from the episode, in video order. Each one sets the calculator to what the video shows. PgDn / PgUp or . and , step through the numbered ones; the ones marked Variant are not shown on screen. A click opens any of them. Esc closes.</div>
   <ol id="shotList"></ol>
@@ -717,9 +619,8 @@
 
   // Episode shot list: every calculator link in the episode script, in document order, identical consecutive hashes merged.
   // notes: true = the link sits only in a "Notes and sources" box, not in an "On screen" block. PgDn / PgUp (what
-  // presentation clickers send) and . / , step through the on-camera shots and skip those; the list (from "Shots" or
-  // the indicator in recording mode) still opens any of them. A shot sets the whole state; recording mode and the
-  // edition stay as they are.
+  // presentation clickers send) and . / , step through the on-camera shots and skip those; the list (from "Scenes")
+  // still opens any of them. A shot sets the whole state; the edition stays as it is.
   var SHOTS = [
     { label: 'Base setup: a break, 4 a day', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0' },
     { label: 'Reading the answer: 6 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s2' },
@@ -939,7 +840,7 @@
   function buildPanel(t) {
     var panel = el('section', { class: 'tabpanel', id: 'panel-' + t.id, role: 'tabpanel', 'aria-labelledby': 'tab-' + t.id });
     var ph = el('span', { class: 'mk', id: t.id + '-ph' });
-    panel.appendChild(el('div', { class: 'phead' }, [el('h2', { text: t.title }), el('span', { class: 'psub', text: t.sub }), el('div', { class: 'reccap', id: t.id + '-rec' }), ph]));
+    panel.appendChild(el('div', { class: 'phead' }, [el('h2', { text: t.title }), el('span', { class: 'psub', text: t.sub }), ph]));
 
     var inp = el('div', { class: 'card inp' }, [el('div', { class: 'k', text: 'Your inputs' })]);
     t.primary.forEach(function (k) { inp.appendChild(buildField(k)); });
@@ -1003,12 +904,6 @@
       b.addEventListener('click', function () { focusTab(t.id); });
       rail.appendChild(b);
       panels.appendChild(buildPanel(t));
-      // Recording mode: the same tab as a slim button on the brand line (plain buttons, not a second tablist)
-      var rb = el('button', { class: 'rt', type: 'button', id: 'rt-' + t.id, 'aria-controls': 'panel-' + t.id },
-        [el('span', { class: 'ti', 'aria-hidden': 'true', text: (t.n < 10 ? '0' : '') + t.n }), el('span', { text: t.short })]);
-      rb.setAttribute('aria-keyshortcuts', String(t.n));
-      rb.addEventListener('click', function () { focusTab(t.id); });
-      $('recRail').appendChild(rb);
     });
     SHOTS.forEach(function (s, i) {
       var lab = el('span', { text: s.label });
@@ -1020,7 +915,6 @@
       var li = document.createElement('li'); li.appendChild(b); $('shotList').appendChild(li);
     });
     $('btnShots').addEventListener('click', function () { toggleShots($('btnShots')); });
-    $('shotInd').addEventListener('click', function () { toggleShots($('shotInd')); });
     $('shotPop').addEventListener('keydown', function (e) {
       var items = [].slice.call(document.querySelectorAll('#shotList .shot'));
       var i = items.indexOf(document.activeElement), n = null;
@@ -1037,15 +931,8 @@
     });
     document.addEventListener('mousedown', function (e) {
       if ($('shotPop').hidden) return;
-      if (e.target.closest && e.target.closest('#shotPop, #btnShots, #shotInd')) return;
+      if (e.target.closest && e.target.closest('#shotPop, #btnShots')) return;
       closeShots();
-    });
-    // Recording mode: a mouse click must not leave focus on the button it clicked (a rail tab, a layout bar), or the next
-    // clicker key or arrow draws the focus ring on camera. e.detail is 0 for keyboard activation, which keeps focus.
-    document.addEventListener('click', function (e) {
-      if (!st['ui.rec'] || !e.detail) return;
-      var f = document.activeElement;
-      if (f && f.tagName === 'BUTTON' && !f.closest('#shotPop') && f.contains(e.target)) f.blur();
     });
     rail.addEventListener('keydown', function (e) {
       var i = TABS.findIndex(function (t) { return t.id === st['ui.focus']; });
@@ -1069,7 +956,7 @@
     setHTML('s6-res', '<div class="hlab"><span class="k" id="s6-hl"></span><span class="mk api" data-api></span></div>' +
       '<div class="tiles" id="s6-tiles"></div>' +
       '<div class="share"><div class="sv lost tnum" id="s6-share" data-p="s6.share"></div><div><div style="font-weight:500;font-size:19px;margin-bottom:10px">of what you spend is cache re-writes</div><div class="stack" id="s6-stack"></div><div class="legend" id="s6-legend"></div></div></div>' +
-      '<p class="story" id="s6-story"></p><div class="foot2 hideRec">Not counted: credits included in your plan (Copilot Pro 1,500 / Pro+ 7,000 / Max 20,000 a month), Cursor fast mode (2x every price), Cursor regional or US-only endpoints (+10%), and usage over the Claude subscription’s 5-hour limit.</div>' + mathsBlock('s6'));
+      '<p class="story" id="s6-story"></p><div class="foot2">Not counted: credits included in your plan (Copilot Pro 1,500 / Pro+ 7,000 / Max 20,000 a month), Cursor fast mode (2x every price), Cursor regional or US-only endpoints (+10%), and usage over the Claude subscription’s 5-hour limit.</div>' + mathsBlock('s6'));
     setHTML('strip-res', '<div class="hlab"><span class="k">Extra cost per month, by cache lifetime</span><span class="mk api" data-api></span></div>' +
       '<div class="tiles" id="strip-tiles"></div><p class="story" id="strip-story"></p><div class="foot2" id="strip-note"></div>' + mathsBlock('strip'));
 
@@ -1083,8 +970,6 @@
     // Buttons and keys
     $('btnMore').addEventListener('click', function () { toggleDrawer(); });
     $('ttlChip').addEventListener('click', function () { toggleDrawer(true); });
-    $('btnRec').addEventListener('click', function () { toggleRec(!st['ui.rec']); });
-    $('btnExit').addEventListener('click', function () { toggleRec(false); });
     $('btnEd').addEventListener('click', toggleEdition);
     $('btnReset').addEventListener('click', function () { var f = st['ui.focus']; st = M.defaultState(); st['ui.focus'] = f; syncInputs(); changed('reset'); });
     document.addEventListener('keydown', function (e) {
@@ -1099,14 +984,11 @@
       var popOpen = !$('shotPop').hidden;
       if (k === 'Escape') {
         if (popOpen) closeShots();
-        else if (st['ui.rec']) toggleRec(false); // More settings is never visible in recording mode, so Esc never goes to it there
         else if (!$('drawer').hidden) toggleDrawer(false);
         return;
       }
       var isTabKey = k === 'ArrowRight' || k === 'ArrowLeft';
       var isShotKey = k === 'PageDown' || k === 'PageUp' || k === '.' || k === ',';
-      // Recording mode: anything a mouse click left focused (a note badge, say) would get a focus ring from this key.
-      if (st['ui.rec'] && !popOpen && t !== 'INPUT' && tg !== document.body && tg.blur && (isTabKey || isShotKey || /^[rgRG1-7]$/.test(k))) tg.blur();
       if (isTabKey || isShotKey) {
         // Sliders and checkboxes own their arrow and page keys; the focused tablist already moved (it calls preventDefault);
         // the open shot list moves its own focus. None of them may step a second time.
@@ -1116,8 +998,7 @@
         else stepShot(k === 'PageDown' || k === '.' ? 1 : -1);
         return;
       }
-      if (k === 'r' || k === 'R') toggleRec(!st['ui.rec']);
-      else if (k === 'g' || k === 'G') toggleEdition();
+      if (k === 'g' || k === 'G') toggleEdition();
       else if (/^[1-7]$/.test(k)) focusTab(TABS[+k - 1].id);
     });
     window.addEventListener('hashchange', function () {
@@ -1171,8 +1052,8 @@
 
   // ------------------------------------------------------------------ episode shots
   var SHOT_KEYS = null;
-  /** The state a shot sets, as a canonical hash with recording mode off, so it compares with any current state. */
-  function shotKey(state) { var s = Object.assign({}, state); s['ui.rec'] = false; return M.encodeState(s); }
+  /** The state a shot sets, as a canonical hash, so it compares with any current state. */
+  function shotKey(state) { return M.encodeState(state); }
   function shotKeys() { return SHOT_KEYS || (SHOT_KEYS = SHOTS.map(function (s) { return shotKey(M.decodeState(s.hash)); })); }
   /** Keep the last shot while the state still equals it (the base setup appears twice); otherwise the first on-camera shot
    *  that equals it, and only then a notes shot. */
@@ -1188,21 +1069,11 @@
     var i = shotIdx;
     do { i += d; } while (i >= 0 && i < SHOTS.length && SHOTS[i].notes);
     goShot(i);
-    peekShot(); // also at either end, so the indicator says where you are
-  }
-  var peekT = 0;
-  /** In recording mode the indicator is invisible; show it for 2.5 s after a step. */
-  function peekShot() {
-    var d = $('recDock');
-    d.classList.add('peek');
-    clearTimeout(peekT);
-    peekT = setTimeout(function () { d.classList.remove('peek'); }, 2500);
   }
   function goShot(i) {
     if (i < 0 || i >= SHOTS.length) return; // a clicker at either end stays put instead of wrapping to the other end
-    var rec = !!st['ui.rec'], prevFocus = st['ui.focus'];
+    var prevFocus = st['ui.focus'];
     st = M.decodeState(SHOTS[i].hash);
-    st['ui.rec'] = rec;
     shotIdx = i;
     if (st['ui.focus'] !== prevFocus) {
       animateNext = true;
@@ -1211,16 +1082,10 @@
     }
     syncInputs();
     changed('shot');
-    peekShot();
     setText('live', (SHOTS[i].notes ? 'Variant scene' : 'Scene ' + SHOTS[i].cam + ' of ' + CAM_N) + ', ' + SHOTS[i].label + '. ' + $('live').textContent);
   }
   function renderShots() {
     matchShot();
-    var on = shotIdx >= 0, exact = on && shotKeys()[shotIdx] === shotKey(st), sh = on && SHOTS[shotIdx];
-    var txt = on ? (sh.notes ? 'Variant' : 'Scene <span class="tnum">' + sh.cam + '/' + CAM_N + '</span>') + ' · ' + esc(sh.label) + (exact ? '' : ' · edited')
-      : 'Shot <span class="tnum">–/' + CAM_N + '</span> · PgDn for the first';
-    setHTML('shotInd', txt);
-    $('shotInd').setAttribute('aria-label', 'Scenes from the episode: ' + (on ? (sh.notes ? 'variant scene' : 'scene ' + sh.cam + ' of ' + CAM_N) + ', ' + sh.label + (exact ? '' : ', edited') : 'none yet') + '. Open the list');
     document.querySelectorAll('#shotList .shot').forEach(function (b, i) {
       if (i === shotIdx) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
     });
@@ -1233,8 +1098,7 @@
     p.hidden = false;
     var r = opener.getBoundingClientRect();
     p.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
-    if (st['ui.rec']) { p.style.top = 'auto'; p.style.bottom = (window.innerHeight - r.top + 8) + 'px'; p.style.maxHeight = (r.top - 21) + 'px'; }
-    else { p.style.bottom = 'auto'; p.style.top = (r.bottom + 8) + 'px'; p.style.maxHeight = (window.innerHeight - r.bottom - 21) + 'px'; }
+    p.style.bottom = 'auto'; p.style.top = (r.bottom + 8) + 'px'; p.style.maxHeight = (window.innerHeight - r.bottom - 21) + 'px';
     opener.setAttribute('aria-expanded', 'true');
     var items = document.querySelectorAll('#shotList .shot');
     var cur = items[Math.max(0, shotIdx)];
@@ -1246,20 +1110,10 @@
     if (p.hidden) return;
     p.hidden = true;
     $('btnShots').setAttribute('aria-expanded', 'false');
-    $('shotInd').setAttribute('aria-expanded', 'false');
-    // Back to the opener outside recording mode; on camera no focus ring is left behind.
-    if (st['ui.rec']) { if (document.activeElement) document.activeElement.blur(); }
-    else if (shotOpener && shotOpener.offsetParent) shotOpener.focus();
+    if (shotOpener && shotOpener.offsetParent) shotOpener.focus();
     shotOpener = null;
   }
 
-  function toggleRec(on) {
-    closeShots();
-    if (on) toggleDrawer(false); // recording mode hides More settings; left open, it would swallow the first Esc
-    st['ui.rec'] = on; changed('ui.rec');
-    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
-    if (on) { window.scrollTo(0, 0); peekShot(); }
-  }
   function toggleDrawer(force) {
     var d = $('drawer'), open = force != null ? force : d.hidden;
     d.hidden = !open;
@@ -1308,7 +1162,6 @@
     return noIds(text) + (ids.length ? ' Sources: ' + ids.join(', ') + '.' : '');
   }
   /** "a" or "an" before a token count as it is read aloud: an 80K, an 18K, a 180K. */
-  function aAn(t) { return /^(8|1[18](?![\d,]))/.test(t) ? 'an' : 'a'; }
   /** Non-breaking hyphen, so "5-minute" never breaks at the hyphen on camera. */
   function nbh(t) { return String(t).replace(/(\d)-(min|minute|hour)/g, '$1\u2011$2'); }
   function plural(n, one, many) { return n + ' ' + (+n === 1 ? one : many); }
@@ -1365,8 +1218,6 @@
     R = M.computeAll(st);
     var gpt = R.rates.provider === 'openai';
     var anim = animateNext; animateNext = false;
-    document.body.classList.toggle('rec', !!st['ui.rec']);
-    $('btnRec').setAttribute('aria-pressed', st['ui.rec'] ? 'true' : 'false');
     document.body.classList.toggle('gpt', gpt);
 
     // Visibility rules (same as classic.html)
@@ -1408,8 +1259,6 @@
       b.setAttribute('aria-selected', on ? 'true' : 'false');
       b.tabIndex = on ? 0 : -1;
       $('panel-' + t.id).hidden = !on;
-      var rb = $('rt-' + t.id);
-      if (on) rb.setAttribute('aria-current', 'true'); else rb.removeAttribute('aria-current');
     });
 
     renderHeader(fs);
@@ -1422,7 +1271,6 @@
     renderS6(anim);
     renderStrip(anim);
     renderRail();
-    TABS.forEach(function (t) { renderRecCaption(t.id); });
     renderShots();
     renderFooter();
     renderLive();
@@ -1754,26 +1602,6 @@
       setText(t.id + '-tf', v[t.id]);
       $('tab-' + t.id).setAttribute('aria-label', t.short + ', ' + v[t.id].replace('/mo', ' a month'));
     });
-  }
-
-  // One line of assumptions under the tab title in recording mode (classic.html REC + renderRecInputs, in plain words)
-  function renderRecCaption(id) {
-    var g = R.rates.genMin, parts = [];
-    var REC = {
-      s1: function () { return ['Break ' + st['s1.minutes'] + ' min', plural(st['s1.perDay'], 'break', 'breaks') + ' a day', st['s1.poll'] ? 'agent polls every ' + st['s1.pollEvery'] + ' min' : null]; },
-      s2: function () { return ['Reading ' + st['s2.minutes'] + ' min', plural(st['s2.perDay'], 'reply', 'replies') + ' a day']; },
-      s3: function () { return ['Tests ' + st['s3.minutes'] + ' min', plural(st['s3.perDay'], 'run', 'runs') + ' a day', st['s3.poll'] ? 'background run, poll every ' + st['s3.pollEvery'] + ' min' : null]; },
-      s4: function () { return ['Orchestrator ' + fmtK(st['s4.co']), st['s4.waves'] + ' waves × ' + st['s4.subs'] + ' subagents of ' + fmtK(st['s4.cs']), st['s4.dur'] + ' min each', 'tool wait ' + st['s4.wait'] + ' min',
-        plural(st['s4.problems'], 'problem', 'problems') + ', ' + st['s4.problemMin'] + ' min each from ' + aAn(fmtK(st['s4.h'])) + ' ' + fmtK(st['s4.h']) + ' handoff', plural(st['s4.runs'], 'run', 'runs') + ' a day']; },
-      s5: function () { return [st['s5.n'] + ' agents', st['s5.r'] + ' min with each', fmtK(st['s5.ca']) + ' context each', st['s5.hours'] + ' h a day']; },
-      s6: function () { return ['$' + fmtNum(st['g.budget'], 0) + ' budget', st['s6.requests'] + ' requests a day', 'average context ' + st['s6.avgPct'] + '% of the full size', fmtK(st['s6.newTok']) + ' new + ' + fmtK(st['s6.outTok']) + ' output tokens each']; },
-      strip: function () { return ['Agent poll every ' + st['strip.heartbeat'] + ' min', 'the tabs you included, before fixes']; }
-    };
-    parts = REC[id]().filter(Boolean);
-    parts.push(R.days + ' working days');
-    if (id !== 's6' && g > 0) parts.push('+ ' + fmtNum(g, 2) + ' min generation per turn');
-    if (id === 's4' && st['s4.layout'] !== 'hub') parts.push('my month: ' + LAYOUT_NAME[st['s4.layout']]);
-    setText(id + '-rec', parts.join(' · '));
   }
 
   function renderFooter() {

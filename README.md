@@ -38,13 +38,11 @@ Measured your own cache behaviour? The episode's polling fix (a short request ev
 keeps the cache warm) is documented for Claude Code only; nobody has measured it in Copilot or
 Cursor yet. Results from either are welcome as issues.
 
-## Presenting it
+## Keys
 
-- **Recording mode** (button, or key `R`) hides every input and formula and shows only the big
-  numbers of the selected tab, plus one line with its assumptions. The caveats stay visible.
-  Keys `1`-`7` switch tab, `Esc` exits. The layout fits a 1920 x 1080 screen.
 - **Scenes** (button, or `PgDn` / `PgUp`, which presentation clickers send) step through the
   configurations shown in the episode.
+- Keys `1`-`7` or the left and right arrows switch tab.
 - **Graphite** (key `G`) switches to the dark edition.
 
 ## Files
@@ -160,8 +158,7 @@ scenario 5 N agents. Defaults: 400K + 400K + 12 x 100K + 5 x 180K = 2.9M tokens,
 premium is 2.9 x $3 = $8.70 a day (it was $2.40 on 0.8M of request traffic alone).
 5 min uses the 5-minute write; 30 min is real for GPT-5.6+ and **hypothetical** at the 5-minute
 price for Claude (Anthropic has no 30-minute tier); 1 h uses the 1-hour write; 5 min and 1 h are
-hypothetical on GPT. Hypothetical tiles are dashed and carry a badge that stays visible in
-recording mode. When main and subagent TTLs differ (Claude Code subscription), an extra **Your
+hypothetical on GPT. Hypothetical tiles are dashed and carry a badge. When main and subagent TTLs differ (Claude Code subscription), an extra **Your
 setup** tile shows the real per-bucket day. **Agent poll** = an agent that polls every 4 minutes
 at your TTL, priced like the poll above; 4 minutes is the interval of Anthropic's API keep-alive
 (F14), and the tile note also gives the price of a bare F14 keep-alive (C x read only), which
