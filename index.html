@@ -545,9 +545,9 @@
       <div class="actions">
         <button class="btn" id="btnMore" type="button" aria-expanded="false" aria-controls="drawer">More settings</button>
         <button class="btn" id="btnReset" type="button">Reset</button>
-        <button class="btn" id="btnShots" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="shotPop" title="Episode shots. PgDn / PgUp (or . and ,) step through the on-camera ones">Shots <kbd aria-hidden="true">PgDn</kbd></button>
+        <button class="btn" id="btnShots" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="shotPop" title="Scenes from the episode. PgDn / PgUp (or . and ,) step through them">Scenes <kbd aria-hidden="true">PgDn</kbd></button>
         <button class="btn" id="btnEd" type="button" title="Switch White / Graphite edition (key G)">Graphite <kbd>G</kbd></button>
-        <button class="btn primary" id="btnRec" type="button" aria-pressed="false" title="Keys 1-7 or arrow left / right switch tab, PgDn / PgUp step through the on-camera episode shots, Esc exits">Recording mode <kbd>R</kbd></button>
+        <button class="btn primary" id="btnRec" type="button" aria-pressed="false" title="Keys 1-7 or arrow left / right switch tab, PgDn / PgUp step through the episode scenes, Esc exits">Recording mode <kbd>R</kbd></button>
       </div>
       <nav class="recrail" id="recRail" aria-label="Scenarios"></nav>
     </div>
@@ -618,8 +618,8 @@
   <button class="btn exit" id="btnExit" type="button">Exit recording (Esc)</button>
   <button class="shotind" id="shotInd" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="shotPop"></button>
 </div>
-<div class="shotpop" id="shotPop" role="dialog" aria-label="Episode shots" hidden>
-  <div class="sph">Episode shots, in script order. PgDn / PgUp or . and , step through the numbered ones (the script's On screen blocks) and skip the ones marked Notes; a click opens any of them. Esc closes.</div>
+<div class="shotpop" id="shotPop" role="dialog" aria-label="Scenes from the episode" hidden>
+  <div class="sph">Scenes from the episode, in video order. Each one sets the calculator to what the video shows. PgDn / PgUp or . and , step through the numbered ones; the ones marked Variant are not shown on screen. A click opens any of them. Esc closes.</div>
   <ol id="shotList"></ol>
 </div>
 <div id="tip" role="tooltip"></div>
@@ -721,23 +721,21 @@
   // the indicator in recording mode) still opens any of them. A shot sets the whole state; recording mode and the
   // edition stay as they are.
   var SHOTS = [
-    { label: '1 Base setup · 6.1 Break 4/day', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0' },
-    { label: '6.1 Break 8/day (cut)', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s1.perDay=8&s2.minutes=6&s4.co=500000&s4.inc=0' },
-    { label: '6.1 Break 4/day', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0' },
-    { label: '6.2 Reading 6 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s2' },
-    { label: '6.2 Reading 4.5 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=4.5&s4.co=500000&s4.inc=0&ui.focus=s2' },
-    { label: '6.2 Reading 4 min (warm)', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=4&s4.co=500000&s4.inc=0&ui.focus=s2' },
-    { label: '6.3 Long tests 12 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s3' },
-    { label: '6.4 Orchestrator', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s4' },
-    { label: '6.5 Parallel 180K', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s5' },
-    { label: '6.5 Parallel 500K', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&s5.ca=500000&ui.focus=s5' },
-    { label: '7 Overlap 180K', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s6' },
-    { label: '7 Lifetimes strip', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=strip' },
-    { label: '7 Overlap 500K', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&s5.ca=500000&ui.focus=s6' },
-    { label: '8 Fix 1: tests 4 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s3.minutes=4&s4.co=500000&s4.inc=0&ui.focus=s3' },
-    { label: '8 Fix 2: polling', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s3.poll=1&s4.co=500000&s4.inc=0&ui.focus=s3' },
-    { label: '8 Fix 3: GPT-6.1 Sol', hash: 'g.profile=copilot-gpt&g.model=gpt-6-1-sol&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0' },
-    { label: '8 Fix 5: orchestrator bars', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s4' }
+    { label: 'Base setup: a break, 4 a day', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0' },
+    { label: 'Reading the answer: 6 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s2' },
+    { label: 'Reading the answer: 4.5 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=4.5&s4.co=500000&s4.inc=0&ui.focus=s2' },
+    { label: 'Reading the answer: 4 min, cache stays warm', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=4&s4.co=500000&s4.inc=0&ui.focus=s2' },
+    { label: 'Long tests: 12 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s3' },
+    { label: 'Orchestrator and subagents', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s4' },
+    { label: 'Parallel agents: 180K each', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s5' },
+    { label: 'Parallel agents: 500K each', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&s5.ca=500000&ui.focus=s5' },
+    { label: 'Monthly budget', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s6' },
+    { label: 'Cost under each cache lifetime', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=strip' },
+    { label: 'Monthly budget, agents at 500K', notes: true, hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&s5.ca=500000&ui.focus=s6' },
+    { label: 'Fix 1: tests cut to 4 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s3.minutes=4&s4.co=500000&s4.inc=0&ui.focus=s3' },
+    { label: 'Fix 2: poll every 3.5 min', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s3.poll=1&s4.co=500000&s4.inc=0&ui.focus=s3' },
+    { label: 'Fix 3: switch to GPT-6.1 Sol', hash: 'g.profile=copilot-gpt&g.model=gpt-6-1-sol&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0' },
+    { label: 'Fix 5: orchestration in code', hash: 'g.profile=copilot-claude&g.model=claude-opus-5-5&g.fillPct=50&s2.minutes=6&s4.co=500000&s4.inc=0&ui.focus=s4' }
   ];
   var shotIdx = -1;   // the last shot applied or matched; -1 = none yet
   var CAM_N = 0;      // on-camera shots; each one's number among them is SHOTS[i].cam (1..CAM_N), notes shots have none
@@ -1014,10 +1012,10 @@
     });
     SHOTS.forEach(function (s, i) {
       var lab = el('span', { text: s.label });
-      if (s.notes) lab.appendChild(el('span', { class: 'ntag', text: 'Notes' }));
+      if (s.notes) lab.appendChild(el('span', { class: 'ntag', text: 'Variant' }));
       var b = el('button', { class: 'shot' + (s.notes ? ' nt' : ''), type: 'button', 'data-i': String(i) },
         [el('span', { class: 'sn', 'aria-hidden': 'true', text: s.notes ? '–' : (s.cam < 10 ? '0' : '') + s.cam }), lab]);
-      if (s.notes) b.setAttribute('aria-label', s.label + ', notes only, skipped by PgDn');
+      if (s.notes) b.setAttribute('aria-label', s.label + ', variant not shown on screen, skipped by PgDn');
       b.addEventListener('click', function () { goShot(i); closeShots(); });
       var li = document.createElement('li'); li.appendChild(b); $('shotList').appendChild(li);
     });
@@ -1214,15 +1212,15 @@
     syncInputs();
     changed('shot');
     peekShot();
-    setText('live', (SHOTS[i].notes ? 'Notes shot' : 'Shot ' + SHOTS[i].cam + ' of ' + CAM_N) + ', ' + SHOTS[i].label + '. ' + $('live').textContent);
+    setText('live', (SHOTS[i].notes ? 'Variant scene' : 'Scene ' + SHOTS[i].cam + ' of ' + CAM_N) + ', ' + SHOTS[i].label + '. ' + $('live').textContent);
   }
   function renderShots() {
     matchShot();
     var on = shotIdx >= 0, exact = on && shotKeys()[shotIdx] === shotKey(st), sh = on && SHOTS[shotIdx];
-    var txt = on ? (sh.notes ? 'Notes' : 'Shot <span class="tnum">' + sh.cam + '/' + CAM_N + '</span>') + ' · ' + esc(sh.label) + (exact ? '' : ' · edited')
+    var txt = on ? (sh.notes ? 'Variant' : 'Scene <span class="tnum">' + sh.cam + '/' + CAM_N + '</span>') + ' · ' + esc(sh.label) + (exact ? '' : ' · edited')
       : 'Shot <span class="tnum">–/' + CAM_N + '</span> · PgDn for the first';
     setHTML('shotInd', txt);
-    $('shotInd').setAttribute('aria-label', 'Episode shots: ' + (on ? (sh.notes ? 'notes shot' : 'shot ' + sh.cam + ' of ' + CAM_N) + ', ' + sh.label + (exact ? '' : ', edited') : 'none yet') + '. Open the list');
+    $('shotInd').setAttribute('aria-label', 'Scenes from the episode: ' + (on ? (sh.notes ? 'variant scene' : 'scene ' + sh.cam + ' of ' + CAM_N) + ', ' + sh.label + (exact ? '' : ', edited') : 'none yet') + '. Open the list');
     document.querySelectorAll('#shotList .shot').forEach(function (b, i) {
       if (i === shotIdx) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
     });
