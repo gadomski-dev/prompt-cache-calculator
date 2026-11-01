@@ -389,6 +389,14 @@ test('URL hash round trip', () => {
   assert.equal(M.encodeState(M.defaultState()), 'g.profile=copilot-claude&g.model=claude-opus-5-5');
 });
 
+test('negative numbers in a shared link are clamped to 0, never turned into negative costs', () => {
+  const st = M.decodeState('#s1.perDay=-5&r.read=-5&g.budget=-5');
+  assert.equal(st['s1.perDay'], 0);
+  assert.equal(st['r.read'], 0);
+  assert.equal(st['g.budget'], 0);
+  assert.ok(M.computeAll(st).s1.perMonthUsd >= 0);
+});
+
 test('unknown ui.focus in the hash falls back to scenario 1', () => {
   assert.equal(M.decodeState('#ui.focus=s9&ui.rec=1')['ui.focus'], 's1');
   assert.equal(M.decodeState('#ui.focus=s4')['ui.focus'], 's4');

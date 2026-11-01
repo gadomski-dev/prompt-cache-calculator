@@ -752,8 +752,8 @@
         if (c.number.value === '') return;
         var v = parseNum(c.number.value);
         if (!isFinite(v)) return;
-        // Below the field minimum (e.g. the "0" typed on the way to "0.5" min) never reaches the model.
-        if (spec.min > 0 && v < spec.min) return;
+        // Below the field minimum (e.g. the "0" typed on the way to "0.5" min, or any negative number) never reaches the model.
+        if (v < (spec.min || 0)) return;
         st[key] = v;
         if (c.range) { c.range.value = v; rangeFill(c.range); valText(c, v); }
         if (c.hint) c.hint.textContent = '= ' + fmtK(v);
@@ -889,7 +889,7 @@
     ci.addEventListener('input', function () {
       if (ci.value === '') return;
       var v = parseNum(ci.value);
-      if (!isFinite(v)) return;
+      if (!isFinite(v) || v < 0) return;
       st['g.useAbs'] = true; st['g.absTokens'] = v;
       syncInputs();
       changed('g.absTokens');

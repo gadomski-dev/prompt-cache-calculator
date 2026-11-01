@@ -1035,7 +1035,8 @@
       if (typeof def === 'boolean') st[k] = raw === '1' || raw === 'true';
       else if (typeof def === 'number' || def === null) {
         if (raw === '') st[k] = null;
-        else { var n = parseFloat(raw); if (isFinite(n)) st[k] = n; }
+        // Every number on the page is a price, a count, a size or a duration: a negative one from a link becomes 0.
+        else { var n = parseFloat(raw); if (isFinite(n)) st[k] = Math.max(0, n); }
       } else st[k] = raw;
     });
     if (!SCENARIOS.some(function (s) { return s.id === st['ui.focus']; })) st['ui.focus'] = 's1';
