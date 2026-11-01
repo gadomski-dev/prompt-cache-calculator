@@ -237,6 +237,8 @@ Shown with an "unverified - edit me" badge:
   F52; GitHub's tutorial says 1 h, F53). **Cursor TTLs** carry "from staff forum posts, not docs"
   (F65, F66). Cursor GPT-5.3-Codex: older OpenAI models get up to 24 h there (F66).
 - **Opus and Fable on Copilot Pro** - not available, only Pro+ and Max (F48); a warning appears.
+- **GPT-5.6 Sol prices** - verified, but a promotional rate "at least through November 21, 2026"
+  (F85); a warning says so.
 
 Badged "assumption - edit me" (the calculator's own assumptions, not vendor facts):
 

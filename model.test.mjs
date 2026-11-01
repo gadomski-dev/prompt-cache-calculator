@@ -461,6 +461,13 @@ test('Cursor + GPT shows the OpenAI shutoff notice, nothing else does', () => {
   assert.equal(M.shutoffNotice('copilot-gpt', 'gpt-5-6-sol'), null);
 });
 
+test('GPT-5.6 Sol warns that its price is promotional (F85), other models do not', () => {
+  const w = (p, m) => M.computeAll(M.defaultState(p, m)).warnings.join(' ');
+  assert.match(w('copilot-gpt', 'gpt-5-6-sol'), /promotional rate, promised at least through November 21, 2026 \(F85\)/);
+  assert.match(w('cursor-claude', 'gpt-5-6-sol'), /promotional/);
+  assert.doesNotMatch(w('copilot-gpt', 'gpt-6-1-sol'), /promotional/);
+});
+
 test('Cursor GPT hit rate is flagged as measured in Copilot', () => {
   assert.equal(M.fieldStatus('cursor-claude', 'gpt-5-6-sol')['g.gptHit'].status, 'source');
   assert.equal(M.fieldStatus('copilot-gpt', 'gpt-5-6-sol')['g.gptHit'], undefined);

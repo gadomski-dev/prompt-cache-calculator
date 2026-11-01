@@ -103,6 +103,7 @@
         cache_write_per_mtok_if_no_ttl_choice: 10.0, cache_write_12h_per_mtok: 20.0
       },
       status: 'verified', fact_ids: ['F46', 'F71', 'F80', 'F85', 'F86'],
+      promo_until: '2026-11-21', // F85: "promotional pricing is available at least through November 21, 2026"
       note: 'Writes are 1.25x input for the default 30-minute minimum lifetime (12h option at 2.5x, Responses API only, not used by Copilot per its price table). Promotional price at least through 2026-11-21. Context window not verified, so null.'
     },
     {
@@ -973,6 +974,11 @@
     var cwin = profile && model && profile.context_windows && profile.context_windows[model.id];
     if (cwin && C > cwin.def && C <= cwin.max) {
       warnings.push('Context C (' + C + ') is above the default context window of ' + model.label + ' in Cursor (' + cwin.def + '); it needs the larger context setting (up to ' + cwin.max + ').');
+    }
+    if (model && model.promo_until) {
+      var pd = model.promo_until.split('-');
+      var MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      warnings.push(model.label + ' prices are a promotional rate, promised at least through ' + MON[+pd[1] - 1] + ' ' + (+pd[2]) + ', ' + pd[0] + ' (F85); check the current price after that.');
     }
     if (profile && model && (profile.not_on_pro || []).indexOf(model.id) >= 0) {
       warnings.push(model.label + ' is not on Copilot Pro, only on Pro+ and Max (F48).');
