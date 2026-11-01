@@ -399,6 +399,11 @@
     #s6-tiles, #strip-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .foot { grid-template-columns: minmax(0, 1fr); }
   }
+  /* Phones: one control per row, so the Tool and Model selects show their whole label
+     ("Copilot AI credits, Claude" and "... GPT" were both cut to "Copilot AI crec" in two columns). */
+  @media (max-width: 620px) {
+    .globals { grid-template-columns: minmax(0, 1fr) !important; }
+  }
   @media (max-width: 720px) {
     .wrap { padding: 0 16px; }
     .row1 { flex-wrap: wrap; gap: 13px; }
