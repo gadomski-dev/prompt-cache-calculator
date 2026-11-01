@@ -536,7 +536,8 @@
   <div class="sph">Scenes from the episode, in video order. Each one sets the calculator to what the video shows. PgDn / PgUp or . and , step through the numbered ones; the ones marked Variant are not shown on screen. A click opens any of them. Esc closes.</div>
   <ol id="shotList"></ol>
 </div>
-<div id="tip" role="tooltip"></div>
+<!-- Visual copy only: every badge carries the same text in a screen-reader-only span, so the tip stays out of the accessibility tree. -->
+<div id="tip" aria-hidden="true"></div>
 <div class="sr" aria-live="polite" id="live"></div>
 
 <script src="model.js"></script>
