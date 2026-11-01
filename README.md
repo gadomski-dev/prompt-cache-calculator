@@ -80,8 +80,8 @@ or an absolute number).
   tokens (F3): a 100K Haiku 5.5 spoke is priced above 100K. Opus 5.5 has none (F6, F45, F63).
 - **GPT hit rate**: on GPT the 30 minutes are a minimum eligibility window, not a guarantee (F80).
   Gaps of 5 minutes or less count as a sure hit; gaps above 5 minutes up to the TTL miss with
-  probability 1 - hit rate. Default hit rate 77% (E4, 32,735 Copilot CLI calls; E2 measured ~95%
-  after 11 minutes), editable as "GPT hit rate", badged "community-measured".
+  probability 1 - hit rate. Default hit rate 77% (E4: 243 of 314 GPT calls, one account, in a
+  log of 32,735 Copilot CLI calls; E2 measured ~95% after 11 minutes), editable as "GPT hit rate", badged "community-measured".
 - **Two buckets**: main conversation and subagents each have a TTL and a write price. They differ
   only on the Claude Code subscription (main 1 h, subagents 5 min, F20).
 - **AI credits** = USD / 0.01 (F41). Shown for the Copilot profiles.
