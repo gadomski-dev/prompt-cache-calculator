@@ -234,7 +234,7 @@ Shown with an "unverified - edit me" badge:
   inferred from it (write = 1.25x input, F80; read 0.05x, F82), output $15.00 assumes 1.5x as on
   GPT-5.6 Sol (F86). Those three carry the badge and a warning appears.
 - **Copilot TTLs** (5 min Claude, 30 min GPT) carry "from client source, not GitHub docs" (K1, K2,
-  F52; GitHub's tutorial says 1 h, F53). **Cursor TTLs** carry "from staff forum posts, not docs"
+  F52; GitHub's tutorial says 24 h for OpenAI models and 1 h for most others, F53). **Cursor TTLs** carry "from staff forum posts, not docs"
   (F65, F66). Cursor GPT-5.3-Codex: older OpenAI models get up to 24 h there (F66).
 - **Opus and Fable on Copilot Pro** - not available, only Pro+ and Max (F48); a warning appears.
 - **GPT-5.6 Sol prices** - verified, but a promotional rate "at least through November 21, 2026"

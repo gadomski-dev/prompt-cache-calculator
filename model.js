@@ -454,8 +454,9 @@
     }
     if (p.ttl_source === 'client' && m.id !== 'gpt-5-3-codex') {
       out['r.ttlMain'] = { status: 'source', badge: 'from client source, not GitHub docs',
-        note: (m.provider === 'anthropic' ? '5 min comes from the VS Code Copilot source and Copilot CLI logs (300 s).' : '30 min comes from Copilot CLI logs (1800 s) and OpenAI docs.') +
-          ' GitHub does not state a TTL; its own tutorial says 1 h for most models, which code and measurements contradict (F53).',
+        note: (m.provider === 'anthropic'
+          ? '5 min comes from the VS Code Copilot source and Copilot CLI logs (300 s). GitHub does not state a TTL; its own tutorial says 1 h for most models, which code and measurements contradict (F53).'
+          : '30 min comes from Copilot CLI logs (1800 s) and OpenAI docs. GitHub does not state a TTL; its own tutorial says 24 h for OpenAI models, which code and measurements contradict for GPT-5.6 and later (F53).'),
         facts: m.provider === 'anthropic' ? ['K1', 'F52', 'F53'] : ['K2', 'F52', 'F80', 'F53'] };
       out['r.ttlSub'] = out['r.ttlMain'];
     } else if (p.ttl_source === 'staff' && m.id !== 'gpt-5-3-codex') {

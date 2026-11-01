@@ -374,6 +374,9 @@ test('per-tool verified model lists', () => {
   // Copilot TTLs come from client source, not GitHub docs
   assert.equal(M.fieldStatus('copilot-claude', 'claude-opus-5-5')['r.ttlMain'].status, 'source');
   assert.equal(M.fieldStatus('copilot-gpt', 'gpt-5-6-sol')['r.ttlMain'].status, 'source');
+  // F53: GitHub's tutorial says 24 h for OpenAI models and 1 h for most others
+  assert.match(M.fieldStatus('copilot-gpt', 'gpt-5-6-sol')['r.ttlMain'].note, /24 h for OpenAI models/);
+  assert.match(M.fieldStatus('copilot-claude', 'claude-opus-5-5')['r.ttlMain'].note, /1 h for most models/);
   // Opus is not on Copilot Pro (F48)
   assert.ok(R.warnings.some((w) => /not on Copilot Pro/.test(w)));
 });
