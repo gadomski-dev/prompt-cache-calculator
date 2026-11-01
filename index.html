@@ -231,7 +231,7 @@
   .tab[aria-selected="true"] .ti::before { content: ""; position: absolute; left: -12px; top: 50%; width: 6px; height: 6px; margin-top: -4px; background: var(--gd-signal); }
 
   /* episode scenes: the jump list opened from the header */
-  .shotpop { position: fixed; z-index: 45; width: 360px; max-height: calc(100vh - 80px); overflow: auto; padding: 8px; background: var(--card);
+  .shotpop { position: fixed; z-index: 45; width: 360px; max-width: calc(100vw - 16px); max-height: calc(100vh - 80px); overflow: auto; padding: 8px; background: var(--card);
     border: 1px solid var(--line-2); border-radius: var(--r-card); box-shadow: var(--shadow-card), 0 21px 55px -21px rgba(0,0,0,.35); }
   .shotpop .sph { padding: 6px 10px 8px; font-size: 13px; line-height: 18px; color: var(--text-2); }
   .shotpop ol { list-style: none; margin: 0; padding: 0; }
@@ -1102,7 +1102,9 @@
     shotOpener = opener;
     p.hidden = false;
     var r = opener.getBoundingClientRect();
-    p.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+    // Right-aligned to the button, but never past the left edge: on phones the button wraps to the left half.
+    var w = Math.min(360, window.innerWidth - 16);
+    p.style.right = Math.max(8, Math.min(window.innerWidth - r.right, window.innerWidth - w - 8)) + 'px';
     p.style.bottom = 'auto'; p.style.top = (r.bottom + 8) + 'px'; p.style.maxHeight = (window.innerHeight - r.bottom - 21) + 'px';
     opener.setAttribute('aria-expanded', 'true');
     var items = document.querySelectorAll('#shotList .shot');
