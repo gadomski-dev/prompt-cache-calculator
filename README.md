@@ -1,36 +1,64 @@
-# Prompt cache TTL simulator (episode 09)
+# Prompt cache cost calculator
 
-A one-page calculator that shows what an expired prompt cache costs in GitHub Copilot, Cursor and
-Claude Code. Tune it to your own day, then show it on camera.
+What it costs when your AI coding tool's prompt cache expires: per break, per day and per month, in
+GitHub Copilot, Cursor and Claude Code, for your tool and your model.
 
-## How to open it
+Built for episode 9 of [Gadomski.DEV](https://www.youtube.com/@GadomskiDEV) on YouTube, about what
+an expired prompt cache costs and how to keep it warm.
 
-Double-click `index.html` or `v2.html` (the gadomski.dev-branded version with the episode's shot list).
-No build step, no dependencies, no network. Fonts load from `fonts/`.
+![The calculator on its default numbers: one cache miss costs $1.92 on Copilot with Claude Opus 5.5](docs/screenshot.png)
 
-- Every input is stored in the URL hash, so a bookmarked URL reopens the same configuration.
-  Only values that differ from the defaults of the chosen tool and model are written.
-- **Reset to defaults** restores every value.
+## Open it
+
+Download or clone the repository and double-click `index.html`. No build step, no dependencies,
+no network: fonts are bundled in `fonts/`.
+
+`classic.html` is the older layout, every scenario on one long page. Both read the same link.
+
+## How to read it
+
+- **Pick your tool, model and context size** at the top. The header shows what one cache miss
+  costs you; each tab below is one everyday situation where the cache expires (a break, reading
+  the answer, a long test run, an orchestrator waiting on subagents, parallel agents, the monthly
+  budget, and the same day under each cache lifetime).
+- **The starting numbers are placeholders** for a heavy agent user. Set your own: each tab says
+  "sample numbers" until you do.
+- **Every price and cache lifetime carries a badge**: verified, from client source, community
+  measured, "unverified - edit me", or "assumption - edit me". Hover a badge for its fact id;
+  [`research/facts.md`](research/facts.md) holds the source and quote behind each one.
+- **Every input lives in the URL hash**, so a copied link reopens the same configuration. Only
+  values that differ from the defaults are written. **Reset** restores them.
+- Token fields accept `400,000`, `400 000`, `400K` and `1.5M`.
+
+## Prices go stale
+
+Prices and cache lifetimes are as of 2026-10-28; the Cursor figures were rechecked on 2026-11-01.
+When a vendor changes a price or a TTL, [open an issue](https://github.com/gadomski-dev/prompt-cache-calculator/issues)
+with a link to the source.
+
+Measured your own cache behaviour? The episode's polling fix (a short request every 3.5 minutes
+keeps the cache warm) is documented for Claude Code only; nobody has measured it in Copilot or
+Cursor yet. Results from either are welcome as issues.
+
+## Presenting it
+
 - **Recording mode** (button, or key `R`) hides every input and formula and shows only the big
-  numbers of the selected scenario, plus one line with that scenario's assumptions (for example
-  "Break 15 min · 4 a day · 22 working days · + 1 min generation per turn"). The header keeps the
-  caveats visible: unverified context window, where the TTL comes from, long-context pricing, and
-  the warnings line. Keys `1`-`7` switch scenario (also right after dragging a slider), `Esc` exits.
-  The scenario is picked with the "On camera" tabs or by clicking a card title.
-- Token fields accept `400,000`, `400 000`, `400K` and `1.5M`; a grey `= 400K` hint shows the value.
-- Switching tool or billing keeps a context window you typed, so a tool-to-tool comparison keeps
-  the same C. Picking a model still re-presets it.
-- Tests: `node --test model.test.mjs` (38 tests, hand-computed expected values).
+  numbers of the selected tab, plus one line with its assumptions. The caveats stay visible.
+  Keys `1`-`7` switch tab, `Esc` exits. The layout fits a 1920 x 1080 screen.
+- **Scenes** (button, or `PgDn` / `PgUp`, which presentation clickers send) step through the
+  configurations shown in the episode.
+- **Graphite** (key `G`) switches to the dark edition.
 
-Files:
+## Files
 
 | File | What it is |
 |---|---|
-| `model.js` | Pure maths, no DOM. Browser global `CacheModel`, Node `module.exports`. Constants copied from `research/constants.json` with status and fact ids. |
-| `index.html` | The UI. Loads `model.js`; inline CSS and JS. |
-| `model.test.mjs` | `node:test` tests for every scenario's default inputs. |
-| `fonts/` | League Spartan, Geist and Geist Mono, both under the SIL Open Font License 1.1 (`fonts/LICENSE-*.txt`). |
+| `index.html` | The page. Loads `model.js`; inline CSS and JS. |
+| `classic.html` | The older one-page layout, same model and link format. |
+| `model.js` | Pure maths, no DOM. Browser global `CacheModel`, Node `module.exports`. Constants copied from `research/constants.json` with status and fact ids (a `file://` page cannot fetch JSON). |
+| `model.test.mjs` | `node:test` tests with hand-computed expected values for every scenario. Run `node --test model.test.mjs` (38 tests). |
 | `research/` | `facts.md` (every fact id the page cites, with source and quote) and `constants.json` (the values `model.js` copies). |
+| `fonts/` | League Spartan, Geist and Geist Mono, under the SIL Open Font License 1.1 (`fonts/LICENSE-*.txt`). |
 
 ## The core model
 
@@ -62,7 +90,7 @@ or an absolute number).
 - **Two buckets**: main conversation and subagents each have a TTL and a write price. They differ
   only on the Claude Code subscription (main 1 h, subagents 5 min, F20).
 - **AI credits** = USD / 0.01 (F41). Shown for the Copilot profiles.
-- **Subscription**: marginal $0 inside the 5-hour limit (Krystian's simplification). The page shows
+- **Subscription**: marginal $0 inside the 5-hour limit (a simplification). The page shows
   the API-equivalent cost as the main number, coloured by misses and labelled "API-equivalent",
   because misses still burn the limit (E9). The Monthly card reads "Plan: flat fee".
 - **Colours**: crimson = a cache miss, green = warm, ink = everything else. Dashed tiles and the
@@ -74,12 +102,12 @@ All per-day numbers are multiplied by working days for the month.
 
 1. **Break** - you leave for N minutes, k times a day.
    Extra per break = `C x (write - read)` if N > TTL, else 0. Per day = k x extra.
-   Remedy toggle (remedies.md remedy 1, "announced break"): the agent polls every P minutes,
+   Fix toggle ("announced break"): the agent polls every P minutes,
    see the poll formula below.
 2. **Reading the answer** - you read the output for N minutes before replying, k times a day.
-   Same formula as Break, no remedy.
+   Same formula as Break, no fix toggle.
 3. **Long tool call** - tests or a build run N minutes, k runs a day.
-   Remedy toggle "background run + poll every P minutes" (remedies.md remedy 1):
+   Fix toggle "background run + poll every P minutes":
    - polls = `ceil(gap / P) - 1` (only when the gap would miss);
    - one poll = `C x read + poll output x output + poll new input x write`;
    - cost with polling = polls x one poll; if P > TTL every poll misses too, and the final resume
@@ -87,7 +115,7 @@ All per-day numbers are multiplied by working days for the month.
      cost = polls x (one poll + miss) + (rest > TTL ? miss : 0);
    - break-even polls = miss / one poll; polling is cheaper for gaps up to `ceil(break-even) x P`
      minutes: **80.5 min** with the agent-poll overhead (22.46 polls), **84 min** with a bare
-     keep-alive read (24 polls, the remedies.md section 2A climax figure). The card shows both.
+     keep-alive read (24 polls). The card shows both.
    The card shows poll cost against miss cost as two bars.
 4. **Orchestrator waiting on subagents** - cost of waiting and handoffs per run, in three layouts.
    `resume(C, gap)` = `C x read` if gap <= TTL, else `C x write`. Inputs: orchestrator context
@@ -98,14 +126,14 @@ All per-day numbers are multiplied by working days for the month.
      The hub misses once per wave when D > TTL.
    - Sequential single agent = `W x S x resume((C_s + C_o) / 2, wait)` [main] + per problem
      `H x write + resume((C_s + C_o) / 2, duck minutes)`. It still waits on every tool call, with a
-     bigger context, so sequential does not fix it (remedies.md section 4).
+     bigger context, so sequential does not fix it.
    - Orchestration in code = `W x S x resume(C_s, wait)` [subagents] + per problem
      `2 x H x write` (a fresh patcher and a duck start from the handoff file). No LLM hub waits.
    - Output and genuinely new input are the same in every layout at the 5-minute write price and are
-     left out (remedies.md section 0). On a longer-TTL bucket every context is written at a higher
+     left out. On a longer-TTL bucket every context is written at a higher
      price, so each layout adds a premium line that is zero on 5-minute buckets: hub and sequential
      `C_o x (main write - 5-min write)`, hub and code `W x S x C_s x (subagent write - 5-min write)`
-     (remedies.md section 3: hub on 1 h = 0.4 x $3 = $1.20).
+     (hub on 1 h = 0.4 x $3 = $1.20).
    - Every gap includes the generation time (D + 1, wait + 1, duck minutes + 1 by default).
    - Per day = runs x the layout picked in "Layout in my day". "Include in my day" adds only the
      re-write part (the `C x (write - read)` of the cold resumes) to Monthly budget.
@@ -125,7 +153,7 @@ All per-day numbers are multiplied by working days for the month.
    - Approximation: scenario events are counted among the requests at average prefix; only their
      re-write surcharge is added on top.
 
-**TTL comparison** - the same day (included scenarios, before remedies) under each lifetime.
+**TTL comparison** - the same day (included scenarios, before fixes) under each lifetime.
 Each tile applies one TTL to both buckets and uses that tier's write price, per price tier (a
 long-context request uses the long-context 5-minute or 1-hour write):
 `sum of events x (gap > TTL ? C x (tile write - read) : 0)` + `tokens written per day x (tile write - your write)`
@@ -142,11 +170,11 @@ at your TTL, priced like the poll above; 4 minutes is the interval of Anthropic'
 (F14), and the tile note also gives the price of a bare F14 keep-alive (C x read only), which
 Copilot, Cursor and Claude Code cannot send.
 
-Remedies from the episode research notes (not published) that fit these inputs are included: polling (1),
-code orchestration with a fresh patcher from a handoff (2), 1-hour TTL (3, via the profile and the
-TTL strip), parallel-agent rhythm (5), smaller context (6, via fill %), longest-cache model (7, via
-the Copilot GPT profile). Not simulated: handoff note before a break (4) and stable prefix (8),
-because they need inputs this page does not have.
+Fixes from the episode that fit these inputs are included: polling, code orchestration with a
+fresh patcher from a handoff file, the 1-hour TTL (via the profile and the TTL comparison),
+parallel-agent rhythm, a smaller context (via fill %) and the longest-cache model (via the Copilot
+GPT profile). Not simulated: a handoff note before a break and a stable prefix, because they need
+inputs this page does not have.
 
 ## Default numbers (placeholders for a heavy agent user; set your own)
 
@@ -167,7 +195,7 @@ days, $200 budget.
 | 6 Monthly budget | 400 requests, 50% prefix, 2,000 new, 800 output | budget lasts 2.1 days (7.6 warm, 0.6 no caching); 72% of spend is re-writes | $95.52 | $2,101 (warm $580.80, no caching $7,251) |
 | TTL comparison | agent poll every 4 min | 5 min $69.12/day; 30 min $0 (hypothetical); 1 h $8.70; agent poll $8.01 (bare keep-alive read $7.28) | | |
 
-The orchestrator defaults reproduce the "reference night" in remedies.md section 0 ($14.40).
+The orchestrator defaults describe one reference night of agent work ($14.40 for the hub).
 On the Claude Code subscription the same inputs give hub $7.92, sequential $2.25, code $6.80
 (API-equivalent): the 1-hour main TTL keeps the hub warm but writes its 400K at $8 instead of $5
 (+$1.20), and subagents stay on 5 minutes, so code orchestration saves $1.12 per run. With an API
@@ -211,7 +239,7 @@ Shown with an "unverified - edit me" badge:
 
 Badged "assumption - edit me" (the calculator's own assumptions, not vendor facts):
 
-- **Poll overhead (200 output + 300 new input tokens per poll)** - from remedies.md section 0.
+- **Poll overhead (200 output + 300 new input tokens per poll)** - our estimate for a short poll turn.
 - **Generation time per turn (1 min)** - F8 says it counts; the length is an assumption.
 
 Badged "community-measured": **GPT hit rate 77%** for gaps of 5 minutes to the TTL (E4; E2 ~95%).
