@@ -1590,8 +1590,9 @@
     tiles.forEach(function (r) {
       var badge = '';
       if (r.hypothetical) {
-        var ht = claude && r.id === 'ttl60' ? 'Your tool does not offer a 1-hour lifetime. Priced as if it existed, at the 1-hour price.'
-          : 'No ' + (claude ? '30-minute tier on Claude' : r.ttl + '-minute tier on GPT') + '. Priced as if it existed: ' + r.note + '.';
+        // Row notes read "<why>: hypothetical at <price>"; the tooltip says each part once.
+        var hp = r.note.split(': hypothetical at ');
+        var ht = withSources(hp[0].charAt(0).toUpperCase() + hp[0].slice(1) + '. ' + (hp.length === 2 ? 'Priced as if it existed, at ' + hp[1] + '.' : 'Priced as if it existed.'), []);
         badge = '<span class="mk hyp" tabindex="0" data-tip="' + esc(ht) + '">hypothetical<span class="sr">: ' + esc(ht) + '</span></span>';
       }
       else if (r.isYours) badge = '<span class="mk mine">your tool</span>';
