@@ -1201,7 +1201,9 @@
   // Shown once on entering such a pair, from a selection, a shared link or a shot; OK closes it.
   var shutoffShown = false;
   function shutoffCheck() {
-    var msg = M.shutoffNotice(st['g.profile'], st['g.model']);
+    var now = new Date();
+    var today = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now.getDate()).slice(-2);
+    var msg = M.shutoffNotice(st['g.profile'], st['g.model'], today);
     var pop = document.getElementById('shutoffPop');
     if (!msg) { shutoffShown = false; if (pop) pop.hidden = true; return; }
     if (shutoffShown) return;

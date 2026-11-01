@@ -451,7 +451,11 @@ test('Cursor context windows: default window warning, documented windows carry n
 });
 
 test('Cursor + GPT shows the OpenAI shutoff notice, nothing else does', () => {
-  assert.equal(M.shutoffNotice('cursor-claude', 'gpt-5-6-sol'), 'As announced by OpenAI, Cursor will no longer offer GPT models from November 12, 2026.');
+  // OpenAI's own words: "a proposed shutoff date of November 12, 2026"
+  assert.equal(M.shutoffNotice('cursor-claude', 'gpt-5-6-sol', '2026-11-01'), 'OpenAI has proposed ending GPT access in Cursor on November 12, 2026. These numbers may stop applying then.');
+  // from the date on: past tense and a check, never a future-tense promise
+  assert.equal(M.shutoffNotice('cursor-claude', 'gpt-5-6-sol', '2026-11-12'), 'OpenAI proposed ending GPT access in Cursor on November 12, 2026. Check that Cursor still offers GPT-5.6 Sol before you rely on these numbers.');
+  assert.match(M.shutoffNotice('cursor-claude', 'gpt-5-6-sol', '2027-01-05'), /^OpenAI proposed /);
   assert.ok(M.shutoffNotice('cursor-teams-claude', 'gpt-5-3-codex'));
   assert.equal(M.shutoffNotice('cursor-claude', 'claude-opus-5-5'), null);
   assert.equal(M.shutoffNotice('copilot-gpt', 'gpt-5-6-sol'), null);

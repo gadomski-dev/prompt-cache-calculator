@@ -321,16 +321,21 @@
   }
 
   /**
-   * Notice shown when a profile + model pair will stop working on a known date (Cursor + GPT: OpenAI ends
-   * its contract with Cursor). null when there is nothing to say.
+   * Notice shown when a profile + model pair may stop working on a known date (Cursor + GPT: OpenAI proposed
+   * a shutoff date). `today` is an ISO date (YYYY-MM-DD) passed in by the page, so this stays a pure function;
+   * from that date on the notice is in the past tense and asks the user to check. null when there is nothing to say.
    */
-  function shutoffNotice(profileId, modelId) {
+  function shutoffNotice(profileId, modelId, today) {
     var p = findProfile(profileId);
     var m = findModel(modelId);
     if (!p || !m || !p.gpt_shutoff || m.provider !== 'openai') return null;
     var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     var d = p.gpt_shutoff.split('-');
-    return 'As announced by OpenAI, Cursor will no longer offer GPT models from ' + MONTHS[+d[1] - 1] + ' ' + (+d[2]) + ', ' + d[0] + '.';
+    var date = MONTHS[+d[1] - 1] + ' ' + (+d[2]) + ', ' + d[0];
+    if (today && today >= p.gpt_shutoff) {
+      return 'OpenAI proposed ending GPT access in Cursor on ' + date + '. Check that Cursor still offers ' + m.label + ' before you rely on these numbers.';
+    }
+    return 'OpenAI has proposed ending GPT access in Cursor on ' + date + '. These numbers may stop applying then.';
   }
 
   function defaultModelFor(profileId) {
