@@ -96,7 +96,8 @@ or an absolute number).
 All per-day numbers are multiplied by working days for the month.
 
 1. **Break** - you leave for N minutes, k times a day.
-   Extra per break = `C x (write - read)` if N > TTL, else 0. Per day = k x extra.
+   Extra per break = `C x (write - read)` if N + generation > TTL, else 0 (on GPT, between
+   5 minutes and the TTL, 1 - hit rate of that). Per day = k x extra.
    Fix toggle ("announced break"): the agent polls every P minutes,
    see the poll formula below.
 2. **Reading the answer** - you read the output for N minutes before replying, k times a day.
