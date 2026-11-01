@@ -81,7 +81,7 @@ or an absolute number).
 - **Long-context premium**: when the model has a long-context tier (Haiku 5.5 above 100K,
   GPT-5.6 Sol and GPT-6.1 Sol above 272K, GPT-5.6 Luna above 200K, facts F3, F46, F86) and the
   request is above the threshold, that tier's prices apply. The threshold is tested on C plus the
-  new input of one turn ("New input per request" on the Monthly card), because it counts all input
+  new input of one turn ("New input per request" on the Budget tab), because it counts all input
   tokens (F3): a 100K Haiku 5.5 spoke is priced above 100K. Opus 5.5 has none (F6, F45, F63).
 - **GPT hit rate**: on GPT the 30 minutes are a minimum eligibility window, not a guarantee (F80).
   Gaps of 5 minutes or less count as a sure hit; gaps above 5 minutes up to the TTL miss with
@@ -92,7 +92,7 @@ or an absolute number).
 - **AI credits** = USD / 0.01 (F41). Shown for the Copilot profiles.
 - **Subscription**: marginal $0 inside the 5-hour limit (a simplification). The page shows
   the API-equivalent cost as the main number, coloured by misses and labelled "API-equivalent",
-  because misses still burn the limit (E9). The Monthly card reads "Plan: flat fee".
+  because misses still burn the limit (E9). The Budget tab reads "Plan: flat fee".
 - **Colours**: crimson = a cache miss, green = warm, ink = everything else. Dashed tiles and the
   "hypothetical" badge mark TTL tiers the model does not offer.
 
@@ -141,16 +141,16 @@ All per-day numbers are multiplied by working days for the month.
      `C_o x (main write - 5-min write)`, hub and code `W x S x C_s x (subagent write - 5-min write)`
      (hub on 1 h = 0.4 x $3 = $1.20).
    - Every gap includes the generation time (D + 1, wait + 1, duck minutes + 1 by default).
-   - Per day = runs x the layout picked in "Layout in my day". "Include in my day" adds only the
-     re-write part (the `C x (write - read)` of the cold resumes) to Monthly budget.
+   - Per day = runs x the layout picked in "Layout in my month". "Include in my month" adds only the
+     re-write part (the `C x (write - read)` of the cold resumes) to the Budget tab.
 5. **Parallel agents in worktrees** - N agents, R minutes with each in round-robin.
    Each agent waits `(N - 1) x R + generation`. Returns per hour = `60 / R`. Extra per hour =
    returns x `C_agent x (write - read)` if the wait > TTL. **Most agents you can rotate without a
    miss = floor((TTL - generation) / R) + 1.** Max minutes per agent at N = `(TTL - generation) / (N - 1)`.
    Worktrees never share a cache (F26). On GPT the dots turn orange: inside the window, but about
    23% of returns still miss.
-6. **Monthly budget** - normal traffic plus the re-writes of every scenario marked
-   "Include in my day".
+6. **Monthly budget** (the Budget tab) - normal traffic plus the re-writes of every scenario
+   marked "Include in my month".
    - C_avg = C x average prefix %.
    - Warm day = requests x (`C_avg x read + new x write + output x output price`).
    - Real day = warm day + included re-writes. Share of spend that is re-writes = re-writes / real day.
@@ -159,11 +159,11 @@ All per-day numbers are multiplied by working days for the month.
    - Approximation: scenario events are counted among the requests at average prefix; only their
      re-write surcharge is added on top.
 
-**TTL comparison** - the same day (included scenarios, before fixes) under each lifetime.
+**Cache lifetimes compared** (the Lifetimes tab) - the same day (included scenarios, before fixes) under each lifetime.
 Each tile applies one TTL to both buckets and uses that tier's write price, per price tier (a
 long-context request uses the long-context 5-minute or 1-hour write):
 `sum of events x (gap > TTL ? C x (tile write - read) : 0)` + `tokens written per day x (tile write - your write)`
-per bucket. Tokens written per day = the larger of `requests x new tokens` (Monthly card) and the
+per bucket. Tokens written per day = the larger of `requests x new tokens` (Budget tab) and the
 contexts the included scenarios build: main conversation C once, scenario 4 per layout and run,
 scenario 5 N agents. Defaults: 400K + 400K + 12 x 100K + 5 x 180K = 2.9M tokens, so the 1-hour
 premium is 2.9 x $3 = $8.70 a day (it was $2.40 on 0.8M of request traffic alone).
@@ -171,13 +171,13 @@ premium is 2.9 x $3 = $8.70 a day (it was $2.40 on 0.8M of request traffic alone
 price for Claude (Anthropic has no 30-minute tier); 1 h uses the 1-hour write and is hypothetical
 in Copilot (no 1-hour write price listed, F47; the experimental VS Code 1-hour setting skips
 Claude 5.x, F50) and in Cursor (no TTL setting, F67, F68); 5 min and 1 h are hypothetical on GPT. Hypothetical tiles are dashed and carry a badge. When main and subagent TTLs differ (Claude Code subscription), an extra **Your
-setup** tile shows the real per-bucket day. **Agent poll** = an agent that polls every 4 minutes
+setup** tile shows the real per-bucket day. **Agent polls every 4 min** = an agent that polls every 4 minutes
 at your TTL, priced like the poll above; 4 minutes is the interval of Anthropic's API keep-alive
 (F14), and the tile note also gives the price of a bare F14 keep-alive (C x read only), which
 Copilot, Cursor and Claude Code cannot send.
 
 Fixes from the episode that fit these inputs are included: polling, code orchestration with a
-fresh patcher from a handoff file, the 1-hour TTL (via the profile and the TTL comparison),
+fresh patcher from a handoff file, the 1-hour TTL (via the profile and the Lifetimes tab),
 parallel-agent rhythm, a smaller context (via fill %) and the longest-cache model (via the Copilot
 GPT profile). Not simulated: a handoff note before a break and a stable prefix, because they need
 inputs this page does not have.
@@ -199,7 +199,7 @@ days, $200 budget.
 | 4 Orchestrator | C_o 400K, 3 x 4 subagents of 100K, D 12, wait 7, H 80K, 1 problem of 8 min, 1 run | hub $14.40 per run; sequential $16.65; code $6.80 | $14.40 | $316.80 |
 | 5 Parallel agents | 5 agents, 3 min each, 180K, 1 h a day | $17.28 per hour; largest warm N = 2 | $17.28 | $380.16 |
 | 6 Monthly budget | 400 requests, 50% prefix, 2,000 new, 800 output | budget lasts 2.1 days (7.6 warm, 0.6 no caching); 72% of spend is re-writes | $95.52 | $2,101 (warm $580.80, no caching $7,251) |
-| TTL comparison | agent poll every 4 min | 5 min $69.12/day; 30 min $0 (hypothetical); 1 h $8.70 (hypothetical in Copilot); agent poll $8.01 (bare keep-alive read $7.28) | | |
+| Lifetimes | agent polls every 4 min | 5 min $69.12/day; 30 min $0 (hypothetical); 1 h $8.70 (hypothetical in Copilot); agent poll $8.01 (bare keep-alive read $7.28) | | |
 
 The orchestrator defaults describe one reference night of agent work ($14.40 for the hub).
 On the Claude Code subscription the same inputs give hub $7.92, sequential $2.25, code $6.80
