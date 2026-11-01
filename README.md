@@ -210,7 +210,7 @@ Verified (primary source):
 
 - Anthropic prices for Opus 5.5, Sonnet 5.5, Haiku 5.5 (with long-context tier), Fable 5.1,
   Opus 5 / 4.8 / 4.5: F1-F7. Copilot and Cursor charge the same: F45, F63. Cursor Teams +$0.25/MTok
-  on every category, Haiku 5.5 exempt: F64.
+  on every category, Haiku 5.5 and GPT-5.6 Luna exempt: F64.
 - GPT-5.6 Sol, GPT-6.1 Sol (up to 272K, and the $5.00 write above it), GPT-5.6 Luna, GPT-5.3-Codex
   rates in Copilot: F46, F80-F86.
 - Which model rates each tool lists: Copilot F45 (Opus 5.5, Opus 5, Opus 4.8, Sonnet 5.5, Fable 5.1)
