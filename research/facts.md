@@ -167,7 +167,7 @@ Rules for the calculator:
 ### Cursor
 
 1. **The X Subscription (current).** Claude and GPT are billed at the API list price from prepaid credit, from the first request (F62). Premium ($30) or higher is required.
-2. **Teams and Enterprise.** Add a flat $0.25/MTok on every token category, cached included (F64). Haiku 5.5 is exempt.
+2. **Teams and Enterprise.** Add a flat $0.25/MTok on every token category, cached included (F64). Haiku 5.5 and GPT-5.6 Luna are exempt.
 3. **Data residency.** Regional or US-only endpoints cost +10% (F63).
 4. **Legacy plans.** Claude draws from a monthly "Other Models" pool at API price. Cursor no longer publishes the pool size in dollars (staff, 2026-09-25). Overage is at API rates.
 5. **TTL.** Claude 5 minutes, not configurable (F65, F68). GPT-5.6 30 minutes (F66). Cursor's own Grok and Composer charge no cache write (F70).

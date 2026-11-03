@@ -231,7 +231,7 @@
   .tab[aria-selected="true"] .ti::before { content: ""; position: absolute; left: -12px; top: 50%; width: 6px; height: 6px; margin-top: -4px; background: var(--gd-signal); }
 
   /* episode scenes: the jump list opened from the header */
-  .shotpop { position: fixed; z-index: 45; width: 360px; max-height: calc(100vh - 80px); overflow: auto; padding: 8px; background: var(--card);
+  .shotpop { position: fixed; z-index: 45; width: 360px; max-width: calc(100vw - 16px); max-height: calc(100vh - 80px); overflow: auto; padding: 8px; background: var(--card);
     border: 1px solid var(--line-2); border-radius: var(--r-card); box-shadow: var(--shadow-card), 0 21px 55px -21px rgba(0,0,0,.35); }
   .shotpop .sph { padding: 6px 10px 8px; font-size: 13px; line-height: 18px; color: var(--text-2); }
   .shotpop ol { list-style: none; margin: 0; padding: 0; }
@@ -296,6 +296,9 @@
   details.maths { margin-top: 18px; border-top: 1px solid var(--line); }
   .well { background: var(--well); border: 1px solid var(--line); border-radius: var(--r-card); padding: 18px 22px; font-family: var(--font-mono); font-size: 14px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
   .well table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  /* Tables keep whole words; on a phone the well scrolls sideways instead of breaking "Sequential" into "Sequ / enti / al". */
+  .well:has(table) { overflow-x: auto; }
+  .well th, .well td { overflow-wrap: normal; }
   .well th { text-align: left; font-weight: 500; font-size: 11.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); border-bottom: 1px solid var(--line-2); padding: 6px 10px 6px 0; }
   .well td { padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   .well td.v { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -399,6 +402,11 @@
     #s6-tiles, #strip-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .foot { grid-template-columns: minmax(0, 1fr); }
   }
+  /* Phones: one control per row, so the Tool and Model selects show their whole label
+     ("Copilot AI credits, Claude" and "... GPT" were both cut to "Copilot AI crec" in two columns). */
+  @media (max-width: 620px) {
+    .globals { grid-template-columns: minmax(0, 1fr) !important; }
+  }
   @media (max-width: 720px) {
     .wrap { padding: 0 16px; }
     .row1 { flex-wrap: wrap; gap: 13px; }
@@ -439,7 +447,9 @@
     font-weight: 600; font-size: 18px; line-height: 26px; box-shadow: 0 8px 28px rgba(0,0,0,.25); }
   #shutoffPop[hidden] { display: none; }
   #shutoffPop p { margin: 0; flex: 1; }
-  #shutoffPop button { flex: none; border: 2px solid #fff; background: transparent; color: #fff; font: inherit; padding: 6px 16px; border-radius: 999px; cursor: pointer; }
+  #shutoffPop button { flex: none; border: 2px solid currentColor; background: transparent; color: inherit; font: inherit; padding: 6px 16px; border-radius: 999px; cursor: pointer; }
+  /* Graphite's --lost is a light crimson (#FF6275): white on it is 2.89:1, ink is 6.57:1 (WCAG AA needs 4.5:1 at 18px/600). */
+  [data-edition="graphite"] #shutoffPop { color: var(--gd-ink); }
 </style>
 </head>
 <body>
@@ -529,7 +539,8 @@
   <div class="sph">Scenes from the episode, in video order. Each one sets the calculator to what the video shows. PgDn / PgUp or . and , step through the numbered ones; the ones marked Variant are not shown on screen. A click opens any of them. Esc closes.</div>
   <ol id="shotList"></ol>
 </div>
-<div id="tip" role="tooltip"></div>
+<!-- Visual copy only: every badge carries the same text in a screen-reader-only span, so the tip stays out of the accessibility tree. -->
+<div id="tip" aria-hidden="true"></div>
 <div class="sr" aria-live="polite" id="live"></div>
 
 <script src="model.js"></script>
@@ -752,8 +763,8 @@
         if (c.number.value === '') return;
         var v = parseNum(c.number.value);
         if (!isFinite(v)) return;
-        // Below the field minimum (e.g. the "0" typed on the way to "0.5" min) never reaches the model.
-        if (spec.min > 0 && v < spec.min) return;
+        // Below the field minimum (e.g. the "0" typed on the way to "0.5" min, or any negative number) never reaches the model.
+        if (v < (spec.min || 0)) return;
         st[key] = v;
         if (c.range) { c.range.value = v; rangeFill(c.range); valText(c, v); }
         if (c.hint) c.hint.textContent = '= ' + fmtK(v);
@@ -889,7 +900,7 @@
     ci.addEventListener('input', function () {
       if (ci.value === '') return;
       var v = parseNum(ci.value);
-      if (!isFinite(v)) return;
+      if (!isFinite(v) || v < 0) return;
       st['g.useAbs'] = true; st['g.absTokens'] = v;
       syncInputs();
       changed('g.absTokens');
@@ -961,7 +972,7 @@
     setHTML('s6-res', '<div class="hlab"><span class="k" id="s6-hl"></span><span class="mk api" data-api></span></div>' +
       '<div class="tiles" id="s6-tiles"></div>' +
       '<div class="share"><div class="sv lost tnum" id="s6-share" data-p="s6.share"></div><div><div style="font-weight:500;font-size:19px;margin-bottom:10px">of what you spend is cache re-writes</div><div class="stack" id="s6-stack"></div><div class="legend" id="s6-legend"></div></div></div>' +
-      '<p class="story" id="s6-story"></p><div class="foot2">Not counted: credits included in your plan (Copilot Pro 1,500 / Pro+ 7,000 / Max 20,000 a month), Cursor fast mode (2x every price), Cursor regional or US-only endpoints (+10%), and usage over the Claude subscription’s 5-hour limit.</div>' + mathsBlock('s6'));
+      '<p class="story" id="s6-story"></p><div class="foot2">Not counted: credits included in your plan (Copilot Pro 1,500 / Pro+ 7,000 / Max 20,000 a month), Copilot discounts (Auto model selection −10%, Copilot Fusion −30% through November 30, 2026), Cursor fast mode (2x every price), Cursor regional or US-only endpoints (+10%), US-only inference on the Claude API (1.1x every price), usage over the Claude subscription’s 5-hour limit, and whether Copilot would bill a 1-hour cache write at 2x.</div>' + mathsBlock('s6'));
     setHTML('strip-res', '<div class="hlab"><span class="k">Extra cost per month, by cache lifetime</span><span class="mk api" data-api></span></div>' +
       '<div class="tiles" id="strip-tiles"></div><p class="story" id="strip-story"></p><div class="foot2" id="strip-note"></div>' + mathsBlock('strip'));
 
@@ -973,13 +984,14 @@
     });
 
     // Buttons and keys
-    $('btnMore').addEventListener('click', function () { toggleDrawer(); });
-    $('ttlChip').addEventListener('click', function () { toggleDrawer(true); });
+    $('btnMore').addEventListener('click', function () { toggleDrawer(null, $('btnMore')); });
+    $('ttlChip').addEventListener('click', function () { toggleDrawer(true, $('ttlChip')); });
     $('btnEd').addEventListener('click', toggleEdition);
     $('btnReset').addEventListener('click', function () { var f = st['ui.focus']; st = M.defaultState(); st['ui.focus'] = f; syncInputs(); changed('reset'); });
     document.addEventListener('keydown', function (e) {
       var tg = e.target, t = tg && tg.tagName;
-      // Only typing fields swallow keys; sliders, checkboxes and buttons let the shortcuts through. Esc always works.
+      var inDrawer = !!(tg && tg.closest && tg.closest('#drawer'));
+      // Typing fields swallow every key; sliders and checkboxes keep their arrow keys and block the character shortcuts below. Esc always works.
       if ((t === 'INPUT' && tg.type === 'text') || t === 'SELECT' || t === 'TEXTAREA' || (tg && tg.isContentEditable)) {
         if (e.key !== 'Escape') return;
         tg.blur();
@@ -989,7 +1001,7 @@
       var popOpen = !$('shotPop').hidden;
       if (k === 'Escape') {
         if (popOpen) closeShots();
-        else if (!$('drawer').hidden) toggleDrawer(false);
+        else if (!$('drawer').hidden) toggleDrawer(false, null, inDrawer);
         return;
       }
       var isTabKey = k === 'ArrowRight' || k === 'ArrowLeft';
@@ -1003,8 +1015,16 @@
         else stepShot(k === 'PageDown' || k === '.' ? 1 : -1);
         return;
       }
+      // Character shortcuts (WCAG 2.1.4) never fire while a slider, switch or other form control has focus:
+      // a speech-input user saying a word with a "g" in it must not flip the edition.
+      if (t === 'INPUT' || t === 'SELECT' || t === 'TEXTAREA') return;
       if (k === 'g' || k === 'G') toggleEdition();
-      else if (/^[1-7]$/.test(k)) focusTab(TABS[+k - 1].id);
+      else if (/^[1-7]$/.test(k)) {
+        var before = document.activeElement;
+        focusTab(TABS[+k - 1].id);
+        // A focused control inside the panel that just closed would leave focus on nothing: move it to the new tab.
+        if (before && before !== document.body && !before.offsetParent) $('tab-' + TABS[+k - 1].id).focus();
+      }
     });
     window.addEventListener('hashchange', function () {
       if (location.hash.replace(/^#/, '') === M.encodeState(st)) return;
@@ -1102,7 +1122,9 @@
     shotOpener = opener;
     p.hidden = false;
     var r = opener.getBoundingClientRect();
-    p.style.right = Math.max(8, window.innerWidth - r.right) + 'px';
+    // Right-aligned to the button, but never past the left edge: on phones the button wraps to the left half.
+    var w = Math.min(360, window.innerWidth - 16);
+    p.style.right = Math.max(8, Math.min(window.innerWidth - r.right, window.innerWidth - w - 8)) + 'px';
     p.style.bottom = 'auto'; p.style.top = (r.bottom + 8) + 'px'; p.style.maxHeight = (window.innerHeight - r.bottom - 21) + 'px';
     opener.setAttribute('aria-expanded', 'true');
     var items = document.querySelectorAll('#shotList .shot');
@@ -1119,9 +1141,14 @@
     shotOpener = null;
   }
 
-  function toggleDrawer(force) {
+  var drawerOpener = null;
+  /** restoreFocus: focus was inside the drawer (a typing field blurs itself on Esc first), so it goes back to the opener. */
+  function toggleDrawer(force, opener, restoreFocus) {
     var d = $('drawer'), open = force != null ? force : d.hidden;
+    var hadFocus = restoreFocus || d.contains(document.activeElement);
+    if (open && opener) drawerOpener = opener;
     d.hidden = !open;
+    if (!open && hadFocus) (drawerOpener && drawerOpener.offsetParent ? drawerOpener : $('btnMore')).focus();
     $('btnMore').setAttribute('aria-expanded', open ? 'true' : 'false');
     $('ttlChip').setAttribute('aria-expanded', open ? 'true' : 'false');
     if (open && force) d.scrollIntoView({ block: 'nearest' });
@@ -1201,7 +1228,9 @@
   // Shown once on entering such a pair, from a selection, a shared link or a shot; OK closes it.
   var shutoffShown = false;
   function shutoffCheck() {
-    var msg = M.shutoffNotice(st['g.profile'], st['g.model']);
+    var now = new Date();
+    var today = now.getFullYear() + '-' + ('0' + (now.getMonth() + 1)).slice(-2) + '-' + ('0' + now.getDate()).slice(-2);
+    var msg = M.shutoffNotice(st['g.profile'], st['g.model'], today);
     var pop = document.getElementById('shutoffPop');
     if (!msg) { shutoffShown = false; if (pop) pop.hidden = true; return; }
     if (shutoffShown) return;
@@ -1323,8 +1352,7 @@
       (R.subscription ? ' · subscription: marginal $0 inside the 5-hour limit, but it burns the limit' : ''));
     // Plain sentences on screen; the research IDs move into the tooltip.
     var wRaw = R.warnings.join(' ');
-    var wShown = noIds(wRaw).replace(/^Context C \((\d+)\) is larger than the context window \((\d+)\)\./, function (m0, a, b) { return 'Your context (' + fmtTok(+a) + ' tokens) is larger than the context window (' + fmtTok(+b) + ').'; });
-    setText('warnings', wShown);
+    setText('warnings', noIds(wRaw));
     var wIds = idsOf(wRaw), wn = $('warnings');
     if (wIds.length) { wn.setAttribute('data-tip', 'Sources in the research notes: ' + wIds.join(', ') + '.'); wn.tabIndex = 0; }
     else { wn.removeAttribute('data-tip'); wn.removeAttribute('tabindex'); }
@@ -1402,7 +1430,8 @@
       var pl = s.poll;
       if (badP) t += ' Set a poll interval of at least ' + pMin + ' min.';
       else if (!pl.needed) t += ' No poll is needed.';
-      else if (!pl.keepsWarm) t += ' With the fix: polling every ' + st[id + '.pollEvery'] + ' min is slower than the cache lifetime, so every poll misses too (<b>' + fmtUsd(pl.withPollingUsd) + '</b>). Set it below ' + s.ttl + ' min.';
+      else if (!pl.keepsWarm && pl.pollMissProb >= 1) t += ' With the fix: polling every ' + st[id + '.pollEvery'] + ' min is slower than the cache lifetime, so every poll misses too (<b>' + fmtUsd(pl.withPollingUsd) + '</b>). Set it to ' + fmtNum(pl.sureWarmIntervalMin, 2) + ' min or less.';
+      else if (!pl.keepsWarm) t += ' With the fix: polls ' + st[id + '.pollEvery'] + ' min apart are more than ' + M.GPT_SURE_WARM_MIN + ' min apart, and on GPT about <b>' + pct(pl.pollMissProb) + '</b> of such polls still miss <span class="q">(community-measured)</span>, so polling costs <b>' + fmtUsd(pl.withPollingUsd) + '</b> instead of ' + fmtUsd(s.baseUsd) + '. Poll every ' + fmtNum(pl.sureWarmIntervalMin, 2) + ' min or less to keep the cache warm.';
       else t += ' With the fix, the agent polls <b>' + pl.polls + '</b> times (' + fmtUsd(pl.pollUsd) + ' each): <b>' + fmtUsd(pl.withPollingUsd) + '</b> instead of ' + fmtUsd(s.baseUsd) + '.';
     }
     setHTML(id + '-story', t);
@@ -1420,9 +1449,11 @@
     setHTML(id + '-bars', bars);
     $(id + '-bars').style.display = bars ? '' : 'none';
     var note = '';
-    if (id !== 's2' && s.poll.needed && s.poll.keepsWarm && isFinite(s.poll.maxWorthwhileGapMin)) {
-      note = 'Polling every ' + st[id + '.pollEvery'] + ' min pays off for waits up to <b>' + fmtNum(s.poll.maxWorthwhileGapMin, 1) + ' min</b>.' +
-        ' <span class="mk" tabindex="0" data-tip="A bare keep-alive read (API only, no output tokens) pays off up to ' + fmtNum(s.poll.bareMaxGapMin, 1) + ' min. Source: F14.">API keep-alive<span class="sr">: pays off up to ' + fmtNum(s.poll.bareMaxGapMin, 1) + ' min</span></span>';
+    if (id !== 's2' && s.poll.needed && s.poll.keepsWarm && isFinite(s.maxWorthwhileWaitMin)) {
+      var every = 'every ' + st[id + '.pollEvery'] + ' min';
+      var kaTip = 'A bare keep-alive read (API only, no output tokens) ' + pollPays(s, s.barePartialMaxWaitMin, s.bareMaxWaitMin, false) + ' Source: F14.';
+      note = 'Polling ' + every + ' ' + pollPays(s, s.partialMaxWaitMin, s.maxWorthwhileWaitMin, true) +
+        ' <span class="mk" tabindex="0" data-tip="' + esc(kaTip) + '">API keep-alive<span class="sr">: ' + esc(kaTip) + '</span></span>';
     }
     setHTML(id + '-note', note);
     // Maths
@@ -1433,9 +1464,27 @@
     if (id !== 's2') {
       var pl3 = s.poll;
       fx += '<br><br>polls = ceil(gap / P) − 1 = ' + pl3.polls + ' · one poll = ' + fmtUsd(pl3.pollUsd) + ' · break-even ' + fmtNum(pl3.breakEvenPolls, 1) + ' polls (' + fmtNum(pl3.bareBreakEvenPolls, 1) + ' with a bare keep-alive read)' +
-        (!pl3.keepsWarm && pl3.needed ? '<br>P is longer than the lifetime: ' + pl3.polls + ' cold polls' + (pl3.lastMissProb > 0 ? ' and a cold resume' : ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one is warm') : '');
+        (!pl3.keepsWarm && pl3.needed && pl3.pollMissProb >= 1 ? '<br>P is longer than the lifetime: ' + pl3.polls + ' cold polls' + (pl3.lastMissProb > 0 ? ' and a cold resume' : ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one is warm') : '') +
+        (!pl3.keepsWarm && pl3.needed && pl3.pollMissProb < 1 ? '<br>P is over ' + M.GPT_SURE_WARM_MIN + ' min: each of the ' + pl3.polls + ' polls misses with probability ' + pct(pl3.pollMissProb) +
+          (pl3.lastMissProb > 0 ? ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one with probability ' + pct(pl3.lastMissProb) : ', the resume ' + fmtNum(pl3.restMin, 2) + ' min after the last one is warm') +
+          ' · with polling = polls × (one poll + ' + pct(pl3.pollMissProb) + ' × miss)' + (pl3.lastMissProb > 0 ? ' + ' + pct(pl3.lastMissProb) + ' × miss' : '') : '');
     }
     setHTML(id + '-fx', fx);
+  }
+
+  /**
+   * "pays off for waits up to X min", as a sentence ending in a full stop. On GPT a wait inside the lifetime
+   * misses only 1 - hit rate of the time, so polling can stop paying off there and start again once the gap
+   * passes the lifetime: partialW is the limit inside the window (null on Claude), sureW the limit past it.
+   */
+  function pollPays(s, partialW, sureW, bold) {
+    function b(x) { return bold ? '<b>' + x + '</b>' : x; }
+    var g = R.rates.genMin, ttlWait = s.ttl - g;
+    var sureTxt = sureW > ttlWait + 1e-9 ? 'pays off for waits up to ' + b(fmtNum(sureW, 1) + ' min') : 'does not pay off';
+    if (partialW == null || partialW >= ttlWait - 1e-9) return sureTxt + '.';
+    var inside = partialW > M.GPT_SURE_WARM_MIN - g + 1e-9 ? 'pays off only for waits up to ' + b(fmtNum(partialW, 1) + ' min') : 'does not pay off';
+    return inside + ': within the ' + fmtNum(s.ttl, 2) + '-min lifetime only about ' + pct(1 - R.rates.gptHit) + ' of returns miss. ' +
+      'Past a wait of ' + fmtNum(ttlWait, 1) + ' min a miss is certain, and it ' + (sureTxt === 'does not pay off' ? 'still does not pay off.' : 'again ' + sureTxt + '.');
   }
 
   var LAYOUT_NAME = { hub: 'LLM hub-and-spoke', sequential: 'Sequential single agent', code: 'Orchestration in code' };
@@ -1566,15 +1615,18 @@
     tiles.forEach(function (r) {
       var badge = '';
       if (r.hypothetical) {
-        var ht = claude && r.id === 'ttl60' ? 'Your tool does not offer a 1-hour lifetime. Priced as if it existed, at the 1-hour price.'
-          : 'No ' + (claude ? '30-minute tier on Claude' : r.ttl + '-minute tier on GPT') + '. Priced as if it existed: ' + r.note + '.';
+        // Row notes read "<why>: hypothetical at <price>"; the tooltip says each part once.
+        var hp = r.note.split(': hypothetical at ');
+        var ht = withSources(hp[0].charAt(0).toUpperCase() + hp[0].slice(1) + '. ' + (hp.length === 2 ? 'Priced as if it existed, at ' + hp[1] + '.' : 'Priced as if it existed.'), []);
         badge = '<span class="mk hyp" tabindex="0" data-tip="' + esc(ht) + '">hypothetical<span class="sr">: ' + esc(ht) + '</span></span>';
       }
       else if (r.isYours) badge = '<span class="mk mine">your tool</span>';
       var colour = r.hypothetical ? '' : (r.dayUsd <= 1e-9 || (r === best && (!yoursRow || best.dayUsd < yoursRow.dayUsd - 1e-9)) ? 'saved' : (r.rewriteUsd > 1e-9 && r.id !== 'heartbeat' ? 'lost' : ''));
       var dayLine = '<b data-p="strip.' + r.id + '.day">' + fmtUsd(r.dayUsd) + '</b> a day' + (crTxt(r.dayUsd) ? ' · ' + crTxt(r.dayUsd) : '');
       var note = r.id === 'heartbeat'
-        ? 'The agent sends a short "are you done?" request every ' + st['strip.heartbeat'] + ' min, so the cache does not expire. Each poll costs one cache read plus a few tokens.'
+        ? 'The agent sends a short "are you done?" request every ' + st['strip.heartbeat'] + ' min' +
+          (S.heartbeatKeepsWarm ? ', so the cache does not expire.' : (S.heartbeatPollMissProb >= 1 ? ', but that is longer than the lifetime, so the polls miss too.'
+            : ', but on GPT about ' + pct(S.heartbeatPollMissProb) + ' of polls more than ' + M.GPT_SURE_WARM_MIN + ' min apart still miss.')) + ' Each poll costs one cache read plus a few tokens.'
         : nbh(noIds(r.note.charAt(0).toUpperCase() + r.note.slice(1))) + '.';
       if (r.dayUsd < -1e-9) note = 'Saves money: the cheaper write price outweighs the re-writes. ' + note;
       if (Math.abs(r.premiumUsd) > 1e-9) note += ' Includes ' + fmtUsd(Math.abs(r.premiumUsd)) + ' a day ' + (r.premiumUsd > 0 ? 'extra' : 'saved') + ' on the write price of ' + fmtK(S.writtenTokensPerDay) + ' tokens written a day.';
@@ -1594,7 +1646,8 @@
     var t = 'Same day, same tabs, before any fix. Your tool keeps the cache <b>' + R.rates.ttlMain + ' min</b>' + (R.rates.ttlSub !== R.rates.ttlMain ? ' (subagents ' + R.rates.ttlSub + ')' : '') + ': <b>' + fmtUsd(yours.monthUsd) + '</b> a month.';
     if (best && best !== yours) t += ' Cheapest real option here: <b>' + (best.id === 'heartbeat' ? 'an agent that polls every ' + st['strip.heartbeat'] + ' min' : nbh(best.label) + ' lifetime') + '</b>, <b class="' + (best.dayUsd < yours.dayUsd - 1e-9 ? 'saved' : '') + '">' + fmtUsd(best.monthUsd) + '</b> a month.';
     setHTML('strip-story', t);
-    setHTML('strip-note', 'Dashed tiles are lifetimes your tool or model does not offer, priced as if they existed. Tokens written a day: ' + fmtK(S.writtenTokensPerDay) + ', from ' + (S.writtenFrom === 'contexts' ? 'the contexts the included tabs build' : 'request traffic (Budget tab)') + '.' + (S.heartbeatKeepsWarm ? '' : ' The poll interval is longer than the lifetime, so polls miss too.'));
+    setHTML('strip-note', 'Dashed tiles are lifetimes your tool or model does not offer, priced as if they existed. Tokens written a day: ' + fmtK(S.writtenTokensPerDay) + ', from ' + (S.writtenFrom === 'contexts' ? 'the contexts the included tabs build' : 'request traffic (Budget tab)') + '.' + (S.heartbeatKeepsWarm ? '' : (S.heartbeatPollMissProb >= 1 ? ' The poll interval is longer than the lifetime, so polls miss too.'
+      : ' On GPT, polls more than ' + M.GPT_SURE_WARM_MIN + ' min apart still miss about ' + pct(S.heartbeatPollMissProb) + ' of the time; poll every ' + M.GPT_SURE_WARM_MIN + ' min or less.')));
     setHTML('strip-fx', 'C = the context of each included event<br>per lifetime: Σ events × (gap > lifetime ? C × (tile write − read) : 0) + tokens written a day × (tile write − your write)<br>tokens written a day = the larger of ' + st['s6.requests'] + ' requests × ' + fmtTok(st['s6.newTok']) + ' new tokens and the contexts the included tabs build (here ' + fmtK(S.writtenTokensPerDay) + ')<br>agent poll: polls = ceil(gap / interval) − 1, each poll = C × read + poll tokens<br>per month = per day × ' + R.days + ' working days');
   }
 
@@ -1613,7 +1666,7 @@
     var r = R.rates;
     setHTML('assume', 'Assumptions: ' + fmtNum(r.genMin, 2) + ' min to generate an answer · ' + R.days + ' working days a month · one agent poll = ' + st['g.pollOut'] + ' output + ' + st['g.pollIn'] + ' new input tokens' +
       (gptOn() ? ' · GPT hit rate ' + pct(r.gptHit) + ' for returns after 5 min (community-measured)' : '') + (R.subscription ? ' · subscription amounts are API-equivalent' : '') + '.');
-    setText('asof', 'Prices as of ' + M.AS_OF);
+    setText('asof', 'Prices as of ' + M.AS_OF + ', Cursor rechecked ' + M.CURSOR_AS_OF);
     setText('tele', 'EP.09 · Prompt cache · as of ' + M.AS_OF);
   }
 

@@ -68,6 +68,17 @@ test('scenario 3 Long tool call: 12 min, 6 runs a day', () => {
   close(R.s3.poll.bareMaxGapMin, 84);
 });
 
+test('the polling limit shown as a wait subtracts the generation time (gap = wait + 1 min)', () => {
+  // gap 80.5 = wait 79.5; the card labels the slider value "wait", so it must show 79.5, not 80.5
+  close(R.s3.maxWorthwhileWaitMin, 79.5);
+  close(R.s3.bareMaxWaitMin, 83);
+  const at = (w) => M.computeAll({ ...D, 's3.minutes': w, 's3.poll': true }).s3;
+  // wait 79.5 -> gap 80.5 -> 22 polls x 0.0855 = 1.881 < 1.92
+  assert.ok(at(79.5).perEventUsd < at(79.5).baseUsd);
+  // wait 80 -> gap 81 -> 23 polls x 0.0855 = 1.9665 > 1.92
+  assert.ok(at(80).perEventUsd > at(80).baseUsd);
+});
+
 test('scenario 3 with the background-run remedy on', () => {
   const r = M.computeAll({ ...D, 's3.poll': true });
   close(r.s3.perEventUsd, 0.2565);
@@ -94,6 +105,25 @@ test('poll interval longer than TTL: the final resume is warm when the rest afte
   close(M.pollPlan(rates, 400000, 15, 7, 'main', 200, 300).withPollingUsd, 4.011);
   // gap 20, P 6: polls at 6, 12, 18, rest 2 -> 3 x 2.0055 = 6.0165
   close(M.pollPlan(rates, 400000, 20, 6, 'main', 200, 300).withPollingUsd, 6.0165);
+});
+
+test('GPT poll interval between 5 min and the TTL: each poll misses at 1 - hit rate, not always', () => {
+  const rates = M.ratesFromState(M.defaultState('copilot-gpt', 'gpt-5-6-sol'));
+  // gap 41, P 10: polls at 10, 20, 30, 40, rest 1 -> 4 x (0.329 + 0.23 x 3.68) = 4.7016
+  const p = M.pollPlan(rates, 400000, 41, 10, 'main', 200, 300);
+  assert.equal(p.keepsWarm, false);
+  close(p.pollMissProb, 0.23);
+  assert.equal(p.sureWarmIntervalMin, 5);
+  close(p.withPollingUsd, 4.7016);
+  // above the TTL every poll misses
+  assert.equal(M.pollPlan(rates, 400000, 41, 31, 'main', 200, 300).pollMissProb, 1);
+  // Claude: the sure-warm interval is the TTL
+  assert.equal(M.pollPlan(M.ratesFromState(D), 400000, 16, 3.5, 'main', 200, 300).sureWarmIntervalMin, 5);
+  // TTL strip: a 6-min heartbeat on GPT misses 23% of the time, not always
+  const r = M.computeAll({ ...M.defaultState('copilot-gpt', 'gpt-5-6-sol'), 'strip.heartbeat': 6 });
+  assert.equal(r.strip.heartbeatKeepsWarm, false);
+  close(r.strip.heartbeatPollMissProb, 0.23);
+  assert.ok(!/longer than TTL/.test(r.strip.rows.find((x) => x.id === 'heartbeat').note));
 });
 
 test('generation time counts against the TTL (F8): 4.5 min of reading after a 1-minute answer is a miss', () => {
@@ -270,6 +300,29 @@ test('GPT gaps of 5-30 min miss at 1 - hit rate (E4 77%), not 0', () => {
   close(M.computeAll({ ...M.defaultState('copilot-gpt', 'gpt-5-6-sol'), 's2.minutes': 3 }).s2.perEventUsd, 0);
 });
 
+test('GPT polling break-even inside the lifetime uses the expected miss, (1 - hit rate) x miss', () => {
+  const st = { ...M.defaultState('copilot-gpt', 'gpt-5-6-sol'), 's3.poll': true };
+  const s3 = M.computeAll(st).s3; // wait 12 + 1 = gap 13, inside the 30-min lifetime
+  // one poll = 0.4 x 0.80 + 200 x 30 / 1e6 + 300 x 10 / 1e6 = 0.329; miss = 0.4 x (10 - 0.8) = 3.68
+  close(s3.poll.pollUsd, 0.329);
+  // 3 polls x 0.329 = 0.987 > 0.23 x 3.68 = 0.8464: polling loses at this wait
+  close(s3.perEventUsd, 0.987);
+  close(s3.baseUsd, 0.8464);
+  // expected break-even 0.8464 / 0.329 = 2.57 polls -> gaps up to 3 x 3.5 = 10.5 min (wait 9.5)
+  close(s3.poll.partialMaxGapMin, 10.5);
+  close(s3.partialMaxWaitMin, 9.5);
+  // past the lifetime a miss is certain: 3.68 / 0.329 = 11.19 polls -> gaps up to 12 x 3.5 = 42 min
+  close(s3.poll.maxWorthwhileGapMin, 42);
+  const at = (w) => M.computeAll({ ...st, 's3.minutes': w }).s3;
+  assert.ok(at(9.5).perEventUsd < at(9.5).baseUsd); // gap 10.5: 2 polls 0.658 < 0.8464
+  assert.ok(at(10).perEventUsd > at(10).baseUsd); // gap 11: 3 polls 0.987 > 0.8464
+  assert.ok(at(35).perEventUsd < at(35).baseUsd); // gap 36 > 30: certain miss, 10 polls 3.29 < 3.68
+  // Claude has no partial window
+  assert.equal(R.s3.poll.partialMaxGapMin, null);
+  // a 100% hit rate leaves nothing to save inside the window
+  assert.equal(M.computeAll({ ...st, 'g.gptHit': 100 }).s3.poll.partialMaxGapMin, 0);
+});
+
 test('GPT-6.1 Sol above 272K uses the published long-context row (F46, checked 2026-10-30)', () => {
   const r = M.computeAll(M.defaultState('copilot-gpt', 'gpt-6-1-sol'));
   assert.equal(r.main.long, true);
@@ -321,6 +374,9 @@ test('per-tool verified model lists', () => {
   // Copilot TTLs come from client source, not GitHub docs
   assert.equal(M.fieldStatus('copilot-claude', 'claude-opus-5-5')['r.ttlMain'].status, 'source');
   assert.equal(M.fieldStatus('copilot-gpt', 'gpt-5-6-sol')['r.ttlMain'].status, 'source');
+  // F53: GitHub's tutorial says 24 h for OpenAI models and 1 h for most others
+  assert.match(M.fieldStatus('copilot-gpt', 'gpt-5-6-sol')['r.ttlMain'].note, /24 h for OpenAI models/);
+  assert.match(M.fieldStatus('copilot-claude', 'claude-opus-5-5')['r.ttlMain'].note, /1 h for most models/);
   // Opus is not on Copilot Pro (F48)
   assert.ok(R.warnings.some((w) => /not on Copilot Pro/.test(w)));
 });
@@ -331,6 +387,14 @@ test('URL hash round trip', () => {
   const back = M.decodeState('#' + hash);
   assert.deepEqual(back, st);
   assert.equal(M.encodeState(M.defaultState()), 'g.profile=copilot-claude&g.model=claude-opus-5-5');
+});
+
+test('negative numbers in a shared link are clamped to 0, never turned into negative costs', () => {
+  const st = M.decodeState('#s1.perDay=-5&r.read=-5&g.budget=-5');
+  assert.equal(st['s1.perDay'], 0);
+  assert.equal(st['r.read'], 0);
+  assert.equal(st['g.budget'], 0);
+  assert.ok(M.computeAll(st).s1.perMonthUsd >= 0);
 });
 
 test('unknown ui.focus in the hash falls back to scenario 1', () => {
@@ -372,17 +436,28 @@ test('GPT-5.6 Luna long context starts at 272K in Cursor, 200K in Copilot', () =
   assert.equal(at250('copilot-gpt').main.long, true);
 });
 
-test('TTL strip: no 1-hour lifetime in Cursor, still one in Claude Code', () => {
+test('TTL strip: no 1-hour lifetime in Cursor or Copilot, still one in Claude Code', () => {
   const row = (p) => M.computeAll(M.defaultState(p, 'claude-opus-5-5')).strip.rows.find((r) => r.id === 'ttl60');
   assert.equal(row('cursor-claude').hypothetical, true);
   assert.equal(row('cursor-teams-claude').hypothetical, true);
   assert.equal(row('claude-code-api-5m').hypothetical, false);
-  assert.equal(row('copilot-claude').hypothetical, false); // unchanged: scope of this fix is Cursor
+  // F47: Copilot lists no 1-hour write price; F50: its 1-hour setting skips Claude 5.x
+  assert.equal(row('copilot-claude').hypothetical, true);
+  assert.match(row('copilot-claude').note, /no 1-hour write price/);
+  assert.equal(M.fieldStatus('copilot-claude', 'claude-opus-5-5')['r.write1h'].status, 'unverified');
+  assert.equal(M.fieldStatus('claude-code-api-5m', 'claude-opus-5-5')['r.write1h'], undefined);
+  // with a 2-min poll the 1 h tile ($8.70/day) is no longer a "real option"; the agent poll is the cheapest real one
+  const r = M.computeAll({ ...M.defaultState('copilot-claude', 'claude-opus-5-5'), 'strip.heartbeat': 2 });
+  const best = r.strip.rows.filter((x) => !x.hypothetical).sort((a, b) => a.dayUsd - b.dayUsd)[0];
+  assert.equal(best.id, 'heartbeat');
 });
 
 test('Cursor context windows: default window warning, documented windows carry no badge', () => {
   const r = M.computeAll(M.defaultState('cursor-claude', 'claude-opus-5-5')); // C = 40% of 1M = 400K
-  assert.ok(r.warnings.some((w) => /default context window of Claude Opus 5\.5 in Cursor \(300000\)/.test(w)));
+  assert.ok(r.warnings.includes('Your context (400,000 tokens) is above the default context window of Claude Opus 5.5 in Cursor (300,000); it needs the larger context setting (up to 1,000,000).'));
+  // the other context warning reads the same way
+  assert.ok(M.computeAll({ ...M.defaultState(), 'g.useAbs': true, 'g.absTokens': 1200000 }).warnings
+    .includes('Your context (1,200,000 tokens) is larger than the context window (1,000,000).'));
   assert.equal(M.fieldStatus('cursor-claude', 'gpt-5-6-sol')['g.window'], undefined);
   assert.equal(M.defaultState('cursor-claude', 'gpt-5-3-codex')['g.window'], 272000);
   // Copilot keeps the placeholder badge for GPT-5.6 Sol
@@ -390,10 +465,21 @@ test('Cursor context windows: default window warning, documented windows carry n
 });
 
 test('Cursor + GPT shows the OpenAI shutoff notice, nothing else does', () => {
-  assert.equal(M.shutoffNotice('cursor-claude', 'gpt-5-6-sol'), 'As announced by OpenAI, Cursor will no longer offer GPT models from November 12, 2026.');
+  // OpenAI's own words: "a proposed shutoff date of November 12, 2026"
+  assert.equal(M.shutoffNotice('cursor-claude', 'gpt-5-6-sol', '2026-11-01'), 'OpenAI has proposed ending GPT access in Cursor on November 12, 2026. These numbers may stop applying then.');
+  // from the date on: past tense and a check, never a future-tense promise
+  assert.equal(M.shutoffNotice('cursor-claude', 'gpt-5-6-sol', '2026-11-12'), 'OpenAI proposed ending GPT access in Cursor on November 12, 2026. Check that Cursor still offers GPT-5.6 Sol before you rely on these numbers.');
+  assert.match(M.shutoffNotice('cursor-claude', 'gpt-5-6-sol', '2027-01-05'), /^OpenAI proposed /);
   assert.ok(M.shutoffNotice('cursor-teams-claude', 'gpt-5-3-codex'));
   assert.equal(M.shutoffNotice('cursor-claude', 'claude-opus-5-5'), null);
   assert.equal(M.shutoffNotice('copilot-gpt', 'gpt-5-6-sol'), null);
+});
+
+test('GPT-5.6 Sol warns that its price is promotional (F85), other models do not', () => {
+  const w = (p, m) => M.computeAll(M.defaultState(p, m)).warnings.join(' ');
+  assert.match(w('copilot-gpt', 'gpt-5-6-sol'), /promotional rate, promised at least through November 21, 2026 \(F85\)/);
+  assert.match(w('cursor-claude', 'gpt-5-6-sol'), /promotional/);
+  assert.doesNotMatch(w('copilot-gpt', 'gpt-6-1-sol'), /promotional/);
 });
 
 test('Cursor GPT hit rate is flagged as measured in Copilot', () => {

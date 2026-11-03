@@ -17,6 +17,7 @@
 
   var MTOK = 1000000;
   var AS_OF = '2026-10-28';
+  var CURSOR_AS_OF = '2026-11-01'; // Cursor's Models & Pricing table and model pages were rechecked on this date
 
   // ---------------------------------------------------------------------------
   // Constants copied from constants.json
@@ -103,6 +104,7 @@
         cache_write_per_mtok_if_no_ttl_choice: 10.0, cache_write_12h_per_mtok: 20.0
       },
       status: 'verified', fact_ids: ['F46', 'F71', 'F80', 'F85', 'F86'],
+      promo_until: '2026-11-21', // F85: "promotional pricing is available at least through November 21, 2026"
       note: 'Writes are 1.25x input for the default 30-minute minimum lifetime (12h option at 2.5x, Responses API only, not used by Copilot per its price table). Promotional price at least through 2026-11-21. Context window not verified, so null.'
     },
     {
@@ -159,6 +161,10 @@
 
   // Cursor facts shared by both Cursor profiles (cursor.com/docs, fetched 2026-11-01).
   var CURSOR_OFFERED_TTLS = { anthropic: [5], openai: [30] }; // F65, F67, F68: no TTL setting, 1 h rejected
+  // F47: Copilot lists only the 5-minute (1.25x) Claude write price. F50: the VS Code 1-hour setting is experimental,
+  // off by default and skips Claude 5.x; E5: requests stay on 5 minutes even with it on.
+  var COPILOT_OFFERED_TTLS = { anthropic: [5], openai: [30] };
+  var COPILOT_NO_1H = 'Copilot lists no 1-hour write price (F47) and its experimental 1-hour setting is off by default and skips Claude 5.x (F50)';
   var CURSOR_VERIFIED_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-fable-5-1',
     'claude-opus-5', 'claude-opus-4-8', 'gpt-5-6-sol', 'gpt-5-6-luna', 'gpt-5-3-codex'];
   var CURSOR_NOT_OFFERED = ['claude-opus-4-5', 'gpt-6-1-sol', 'gpt-6-astra'];
@@ -207,7 +213,7 @@
       tool: 'cursor', billing: 'usd_per_token', usd_per_credit: null,
       ttl_minutes: { anthropic: 5, openai: 30 },
       // Lifetimes the user can actually get in this tool; any other tile in the TTL strip is hypothetical.
-      offered_ttls: CURSOR_OFFERED_TTLS,
+      offered_ttls: CURSOR_OFFERED_TTLS, ttl_1h_facts: ['F65', 'F67', 'F68'],
       flat_surcharge_per_mtok: 0, ttl_configurable: false,
       // Cursor's Models & Pricing table (fetched 2026-11-01) lists these at the same rates as model.js.
       verified_models: CURSOR_VERIFIED_MODELS,
@@ -225,7 +231,7 @@
       label: 'Cursor Teams/Enterprise with Claude or GPT',
       tool: 'cursor', billing: 'usd_per_token', usd_per_credit: null,
       ttl_minutes: { anthropic: 5, openai: 30 },
-      offered_ttls: CURSOR_OFFERED_TTLS,
+      offered_ttls: CURSOR_OFFERED_TTLS, ttl_1h_facts: ['F65', 'F67', 'F68'],
       // Cursor Token Rate exclusion list (models-and-pricing, fetched 2026-11-01): of the models here, Haiku 5.5 and GPT-5.6 Luna.
       flat_surcharge_per_mtok: 0.25, surcharge_exempt_models: ['claude-haiku-5-5', 'gpt-5-6-luna'], ttl_configurable: false,
       verified_models: CURSOR_VERIFIED_MODELS,
@@ -244,6 +250,7 @@
       label: 'GitHub Copilot (AI credits) with Claude',
       tool: 'copilot', billing: 'ai_credits', usd_per_credit: 0.01,
       ttl_minutes: { anthropic: 5, openai: 30 },
+      offered_ttls: COPILOT_OFFERED_TTLS, ttl_1h_note: COPILOT_NO_1H, ttl_1h_facts: ['F47', 'F50', 'E5'],
       flat_surcharge_per_mtok: 0, ttl_configurable: false,
       included_credits: { pro: 1500, pro_plus: 7000, max: 20000, business_per_user: 1900, enterprise_per_user: 3900 },
       // F45 (Claude rates) and F46 (GPT rates) in the Copilot price table. Haiku 5.5, Opus 4.5 and GPT-6 Astra are not in it.
@@ -259,6 +266,7 @@
       label: 'GitHub Copilot (AI credits) with GPT-5.6 or later',
       tool: 'copilot', billing: 'ai_credits', usd_per_credit: 0.01,
       ttl_minutes: { anthropic: null, openai: 30 },
+      offered_ttls: COPILOT_OFFERED_TTLS,
       flat_surcharge_per_mtok: 0, ttl_configurable: false,
       included_credits: { pro: 1500, pro_plus: 7000, max: 20000, business_per_user: 1900, enterprise_per_user: 3900 },
       verified_models: ['gpt-5-6-sol', 'gpt-6-1-sol', 'gpt-5-6-luna', 'gpt-5-3-codex'], // F46
@@ -315,16 +323,21 @@
   }
 
   /**
-   * Notice shown when a profile + model pair will stop working on a known date (Cursor + GPT: OpenAI ends
-   * its contract with Cursor). null when there is nothing to say.
+   * Notice shown when a profile + model pair may stop working on a known date (Cursor + GPT: OpenAI proposed
+   * a shutoff date). `today` is an ISO date (YYYY-MM-DD) passed in by the page, so this stays a pure function;
+   * from that date on the notice is in the past tense and asks the user to check. null when there is nothing to say.
    */
-  function shutoffNotice(profileId, modelId) {
+  function shutoffNotice(profileId, modelId, today) {
     var p = findProfile(profileId);
     var m = findModel(modelId);
     if (!p || !m || !p.gpt_shutoff || m.provider !== 'openai') return null;
     var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     var d = p.gpt_shutoff.split('-');
-    return 'As announced by OpenAI, Cursor will no longer offer GPT models from ' + MONTHS[+d[1] - 1] + ' ' + (+d[2]) + ', ' + d[0] + '.';
+    var date = MONTHS[+d[1] - 1] + ' ' + (+d[2]) + ', ' + d[0];
+    if (today && today >= p.gpt_shutoff) {
+      return 'OpenAI proposed ending GPT access in Cursor on ' + date + '. Check that Cursor still offers ' + m.label + ' before you rely on these numbers.';
+    }
+    return 'OpenAI has proposed ending GPT access in Cursor on ' + date + '. These numbers may stop applying then.';
   }
 
   function defaultModelFor(profileId) {
@@ -425,6 +438,12 @@
     if (m.long_context && m.long_context.unverified_fields) {
       m.long_context.unverified_fields.forEach(function (k) { out[k] = unv(m.long_context.unverified_note, m.fact_ids); });
     }
+    if (m.provider === 'anthropic' && p.offered_ttls && (p.offered_ttls.anthropic || []).indexOf(60) < 0) {
+      var no1h = p.ttl_1h_note || 'Your tool offers no 1-hour lifetime';
+      var w1h = unv(no1h.charAt(0).toUpperCase() + no1h.slice(1) + '. Anthropic\'s 1-hour price is used only for the hypothetical 1 h tile on the Lifetimes tab.', p.ttl_1h_facts || []);
+      out['r.write1h'] = w1h;
+      if (m.long_context) out['r.lcWrite1h'] = w1h;
+    }
     var cw = p.context_windows && p.context_windows[m.id];
     if (cw) {
       // Cursor documents the window: no badge; computeAll warns when C passes the default window.
@@ -435,8 +454,9 @@
     }
     if (p.ttl_source === 'client' && m.id !== 'gpt-5-3-codex') {
       out['r.ttlMain'] = { status: 'source', badge: 'from client source, not GitHub docs',
-        note: (m.provider === 'anthropic' ? '5 min comes from the VS Code Copilot source and Copilot CLI logs (300 s).' : '30 min comes from Copilot CLI logs (1800 s) and OpenAI docs.') +
-          ' GitHub does not state a TTL; its own tutorial says 1 h for most models, which code and measurements contradict (F53).',
+        note: (m.provider === 'anthropic'
+          ? '5 min comes from the VS Code Copilot source and Copilot CLI logs (300 s). GitHub does not state a TTL; its own tutorial says 1 h for most models, which code and measurements contradict (F53).'
+          : '30 min comes from Copilot CLI logs (1800 s) and OpenAI docs. GitHub does not state a TTL; its own tutorial says 24 h for OpenAI models, which code and measurements contradict for GPT-5.6 and later (F53).'),
         facts: m.provider === 'anthropic' ? ['K1', 'F52', 'F53'] : ['K2', 'F52', 'F80', 'F53'] };
       out['r.ttlSub'] = out['r.ttlMain'];
     } else if (p.ttl_source === 'staff' && m.id !== 'gpt-5-3-codex') {
@@ -532,6 +552,8 @@
       provider: m ? m.provider : 'anthropic',
       // Lifetimes the tool lets the user have, or null when any tier the provider sells is reachable.
       offeredTtls: p && p.offered_ttls && m ? p.offered_ttls[m.provider] || null : null,
+      // Why the tool has no 1-hour lifetime, for the hypothetical tile (null = the generic sentence).
+      no1hNote: p && p.ttl_1h_note || null,
       // F8: the TTL runs from the start of the previous request, so its generation time counts.
       genMin: Math.max(0, num(st['g.genMin'])),
       // GPT only: share of requests 5 min to TTL after the previous one that still hit (E2, E4, F80).
@@ -616,6 +638,8 @@
    * polls = ceil(gap / P) - 1, only if the wait would miss. Each poll misses itself when P > TTL, and the
    * final resume misses only when the rest after the last poll, gap - polls x P, is also longer than the TTL.
    * Polling is cheaper than one miss while polls < miss / one poll, i.e. for gaps up to ceil(break-even) x P.
+   * On GPT a gap between 5 min and the TTL misses only with probability 1 - hit rate, so inside that window
+   * polling is cheaper only while polls < (1 - hit rate) x miss / one poll (partialMaxGapMin, capped at the TTL).
    */
   function pollPlan(rates, C, gap, interval, bucket, pollOut, pollIn) {
     var b = bucketOf(rates, C, bucket);
@@ -634,8 +658,20 @@
     var breakEvenPolls = onePoll > 0 ? miss / onePoll : Infinity;
     var bareRead = usd(C, b.read);
     var bareBreakEvenPolls = bareRead > 0 ? miss / bareRead : Infinity;
+    /** Largest gap whose ceil(gap / P) - 1 polls still cost less than an expected miss of `missCost`. */
+    function limitGap(missCost, perPoll) { return perPoll > 0 ? Math.max(0, Math.ceil(missCost / perPoll - 1e-9)) * P : Infinity; }
+    var partialMax = null, barePartialMax = null;
+    if (rates.provider === 'openai' && b.ttl > GPT_SURE_WARM_MIN) {
+      var qWindow = 1 - rates.gptHit;
+      partialMax = Math.min(b.ttl, limitGap(qWindow * miss, onePoll));
+      barePartialMax = Math.min(b.ttl, limitGap(qWindow * miss, bareRead));
+    }
     return {
       needed: needed, polls: polls, pollUsd: onePoll, missUsd: miss, missProb: qGap, keepsWarm: keepsWarm,
+      // Chance that each poll misses: 1 when P > TTL; on GPT 1 - hit rate when 5 min < P <= TTL.
+      pollMissProb: qPoll,
+      // Longest interval that keeps the cache surely warm: the TTL on Claude, 5 min (or the TTL if shorter) on GPT.
+      sureWarmIntervalMin: rates.provider === 'openai' ? Math.min(GPT_SURE_WARM_MIN, b.ttl) : b.ttl,
       restMin: rest, lastMissProb: qLast,
       withPollingUsd: withPolling, withoutPollingUsd: withoutPolling,
       savingUsd: withoutPolling - withPolling,
@@ -643,7 +679,11 @@
       maxWorthwhileGapMin: isFinite(breakEvenPolls) ? Math.ceil(breakEvenPolls - 1e-9) * P : Infinity,
       // Same with a bare keep-alive read (no poll output, no poll input), the floor any keep-alive costs.
       bareBreakEvenPolls: bareBreakEvenPolls,
-      bareMaxGapMin: isFinite(bareBreakEvenPolls) ? Math.ceil(bareBreakEvenPolls - 1e-9) * P : Infinity
+      bareMaxGapMin: isFinite(bareBreakEvenPolls) ? Math.ceil(bareBreakEvenPolls - 1e-9) * P : Infinity,
+      // GPT only (null on Claude): the same limit for gaps inside the 5-min-to-TTL window, where a miss is not
+      // certain. At or below GPT_SURE_WARM_MIN polling never pays there; at the TTL it pays across the window.
+      partialMaxGapMin: partialMax,
+      barePartialMaxGapMin: barePartialMax
     };
   }
 
@@ -672,6 +712,11 @@
       ttl: b.ttl, gap: gap, genMin: rates.genMin, missProb: q, warm: q === 0, partial: q > 0 && q < 1, longContext: b.long,
       baseUsd: base, perEventUsd: perEvent, perDayUsd: perEvent * perDay, perMonthUsd: perEvent * perDay * days,
       remedyOn: !!poll, poll: plan,
+      // The poll limits above are cache gaps; the wait the user enters is the gap minus the generation time.
+      maxWorthwhileWaitMin: plan.maxWorthwhileGapMin - (rates.genMin || 0),
+      bareMaxWaitMin: plan.bareMaxGapMin - (rates.genMin || 0),
+      partialMaxWaitMin: plan.partialMaxGapMin == null ? null : plan.partialMaxGapMin - (rates.genMin || 0),
+      barePartialMaxWaitMin: plan.barePartialMaxGapMin == null ? null : plan.barePartialMaxGapMin - (rates.genMin || 0),
       events: [{ C: C, gap: gap, perDay: perDay, bucket: 'main' }]
     };
   }
@@ -843,7 +888,7 @@
       });
       return t;
     }
-    var heart = 0, bare = 0, heartWarm = true, yours = 0;
+    var heart = 0, bare = 0, heartWarm = true, heartPollMiss = 0, yours = 0;
     events.forEach(function (e) {
       yours += e.perDay * waitExtraUsd(rates, e.C, e.gap, e.bucket);
       var plan = pollPlan(rates, e.C, e.gap, inp.heartbeat, e.bucket, inp.pollOut, inp.pollIn);
@@ -852,6 +897,7 @@
         heart += e.perDay * plan.withPollingUsd;
         bare += e.perDay * plan0.withPollingUsd;
         if (!plan.keepsWarm) heartWarm = false;
+        heartPollMiss = Math.max(heartPollMiss, plan.pollMissProb);
       }
     });
     var same = rates.ttlMain === rates.ttlSub;
@@ -863,10 +909,10 @@
         note: openai ? 'writes at your (30-minute) write price' : 'no 30-minute tier on Claude: hypothetical at the 5-minute price' },
       { id: 'ttl60', label: '1 h', ttl: 60, rewriteUsd: at(60), premiumUsd: premium(60), hypothetical: openai || notOffered(60),
         note: openai ? 'no 1-hour tier on GPT: hypothetical at your write price'
-          : (notOffered(60) ? 'your tool offers no 1-hour lifetime: hypothetical at the 1-hour price' : 'writes at the 1-hour price') },
+          : (notOffered(60) ? (rates.no1hNote || 'your tool offers no 1-hour lifetime') + ': hypothetical at the 1-hour price' : 'writes at the 1-hour price') },
       { id: 'heartbeat', label: 'Agent poll · ' + inp.heartbeat + ' min', ttl: null, rewriteUsd: heart, premiumUsd: 0, hypothetical: false,
         bareUsd: bare,
-        note: 'the agent polls every ' + inp.heartbeat + ' min at your TTL, each poll = C × read + poll output + poll input' + (heartWarm ? '' : ' (interval longer than TTL: polls miss)') }
+        note: 'the agent polls every ' + inp.heartbeat + ' min at your TTL, each poll = C × read + poll output + poll input' + (heartWarm ? '' : (heartPollMiss >= 1 ? ' (interval longer than TTL: polls miss)' : ' (on GPT, polls more than ' + GPT_SURE_WARM_MIN + ' min apart can still miss)')) }
     ];
     rows.forEach(function (r) {
       r.dayUsd = r.rewriteUsd + r.premiumUsd; r.monthUsd = r.dayUsd * days;
@@ -876,7 +922,7 @@
       dayUsd: yours, monthUsd: yours * days, isYours: true,
       note: 'main ' + rates.ttlMain + ' min, subagents ' + rates.ttlSub + ' min, your write prices',
       shown: !rows.some(function (r) { return r.isYours; }) };
-    return { rows: rows, yours: yoursRow, heartbeatKeepsWarm: heartWarm,
+    return { rows: rows, yours: yoursRow, heartbeatKeepsWarm: heartWarm, heartbeatPollMissProb: heartPollMiss,
       writtenTokensPerDay: useContexts ? contextTok : trafficTok, writtenFrom: useContexts ? 'contexts' : 'traffic' };
   }
 
@@ -922,14 +968,21 @@
     }, days);
 
     var warnings = [];
-    if (C > window) warnings.push('Context C (' + C + ') is larger than the context window (' + window + ').');
+    // Warnings are shown as written: plain words and grouped numbers, no symbols from the formulas.
+    function tok(x) { return Math.round(x).toLocaleString('en-US'); }
+    if (C > window) warnings.push('Your context (' + tok(C) + ' tokens) is larger than the context window (' + tok(window) + ').');
     if (model && model.long_context && model.long_context.unverified_fields && C + rates.newTok > model.long_context.threshold_tokens) {
       warnings.push(model.label + ' above ' + model.long_context.threshold_tokens + ' tokens: only the $' + model.long_context.cache_write_30m_per_mtok.toFixed(2) +
         ' cache write is verified (F46); input, read and output of that tier are inferred or assumed.');
     }
     var cwin = profile && model && profile.context_windows && profile.context_windows[model.id];
     if (cwin && C > cwin.def && C <= cwin.max) {
-      warnings.push('Context C (' + C + ') is above the default context window of ' + model.label + ' in Cursor (' + cwin.def + '); it needs the larger context setting (up to ' + cwin.max + ').');
+      warnings.push('Your context (' + tok(C) + ' tokens) is above the default context window of ' + model.label + ' in Cursor (' + tok(cwin.def) + '); it needs the larger context setting (up to ' + tok(cwin.max) + ').');
+    }
+    if (model && model.promo_until) {
+      var pd = model.promo_until.split('-');
+      var MON = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+      warnings.push(model.label + ' prices are a promotional rate, promised at least through ' + MON[+pd[1] - 1] + ' ' + (+pd[2]) + ', ' + pd[0] + ' (F85); check the current price after that.');
     }
     if (profile && model && (profile.not_on_pro || []).indexOf(model.id) >= 0) {
       warnings.push(model.label + ' is not on Copilot Pro, only on Pro+ and Max (F48).');
@@ -984,7 +1037,8 @@
       if (typeof def === 'boolean') st[k] = raw === '1' || raw === 'true';
       else if (typeof def === 'number' || def === null) {
         if (raw === '') st[k] = null;
-        else { var n = parseFloat(raw); if (isFinite(n)) st[k] = n; }
+        // Every number on the page is a price, a count, a size or a duration: a negative one from a link becomes 0.
+        else { var n = parseFloat(raw); if (isFinite(n)) st[k] = Math.max(0, n); }
       } else st[k] = raw;
     });
     if (!SCENARIOS.some(function (s) { return s.id === st['ui.focus']; })) st['ui.focus'] = 's1';
@@ -992,7 +1046,7 @@
   }
 
   return {
-    AS_OF: AS_OF, MTOK: MTOK,
+    AS_OF: AS_OF, CURSOR_AS_OF: CURSOR_AS_OF, MTOK: MTOK,
     MODELS: MODELS, PROFILES: PROFILES, ASSUMPTIONS: ASSUMPTIONS, SCENARIOS: SCENARIOS,
     USAGE_DEFAULTS: USAGE_DEFAULTS, DEFAULT_PROFILE: DEFAULT_PROFILE,
     findModel: findModel, findProfile: findProfile, allowedModels: allowedModels, defaultModelFor: defaultModelFor,
